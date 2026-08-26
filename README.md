@@ -56,6 +56,40 @@ Le secret de session est genere une fois et conserve dans `data/session-secret.t
 cookie n'est pas marque `secure` par defaut car le prototype tourne en HTTP local ; a passer a `true` dans
 `server/index.js` si l'application est un jour servie en HTTPS.
 
+## Recuperation de mot de passe (acces terminal)
+
+Il n'y a pas de recuperation par courriel : l'app tourne hors ligne, sans service d'envoi de courriels.
+La recuperation se fait plutot via deux scripts en ligne de commande, executes directement sur le poste
+ou vivent les donnees. **La protection ici, c'est l'acces physique/terminal au poste** — pas de mot de
+passe maitre, pas de deuxieme facteur : quiconque a acces au terminal de l'ordinateur peut deja lire le
+fichier de base de donnees directement, donc ce niveau de securite est coherent avec le reste de l'app.
+
+Nom d'utilisateur oublie :
+```bash
+node scripts/list-users.js
+```
+
+Mot de passe oublie (8 caracteres minimum, meme regle qu'a l'inscription) :
+```bash
+node scripts/reset-password.js --user <nom_utilisateur> --password <nouveau_mot_de_passe>
+```
+
+Les deux se connectent a la meme base SQLite que le serveur principal, en respectant `PEI_CENTRAL_DATA_DIR`
+si elle est definie. Pour l'app de bureau installee (pas le mode developpement web), il faut donc pointer
+vers le vrai dossier de donnees avant d'executer la commande :
+
+```bash
+# macOS
+PEI_CENTRAL_DATA_DIR=~/Library/Application\ Support/boussole/data node scripts/reset-password.js --user prof --password nouveauMotDePasse
+
+# Windows (invite de commandes)
+set PEI_CENTRAL_DATA_DIR=%APPDATA%\boussole\data
+node scripts\reset-password.js --user prof --password nouveauMotDePasse
+```
+
+Sans cette variable, les scripts utilisent `data/` a la racine du projet — correct uniquement en mode
+developpement.
+
 ## Architecture
 - `server/` — API Express (port 3001) + base SQLite via `better-sqlite3`, fichier stocke dans `data/pei-central.db` ; extraction de fichiers via `server/textExtract.js` (`pdf-parse`, `mammoth`) et upload via `multer` ; authentification via `server/auth.js` (`bcrypt`, `express-session`). `server/index.js` sert aussi le build Vite (`dist/`) sur le meme port, et expose `start(port)` pour qu'Electron puisse demarrer le serveur lui-meme
 - `src/` — frontend React/Vite, communique avec l'API via `src/api.js` et `src/auth.js` (proxy Vite `/api` -> `http://localhost:3001`)
