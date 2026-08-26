@@ -1,7 +1,7 @@
 {
   "name": "boussole",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "main": "electron/main.js",
   "scripts": {
@@ -12,12 +12,15 @@
     "electron": "npm run build && electron .",
     "dist:mac": "npm run build && electron-builder --mac",
     "dist:win": "npm run build && electron-builder --win",
-    "dist": "npm run build && electron-builder --mac --win"
+    "dist": "npm run build && electron-builder --mac --win",
+    "publish:mac": "npm run build && electron-builder --mac --publish always",
+    "publish:win": "npm run build && electron-builder --win --publish always"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.120.0",
     "bcrypt": "^6.0.0",
     "better-sqlite3": "^12.11.1",
+    "electron-updater": "^6.8.9",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
     "mammoth": "^1.12.1",
@@ -41,6 +44,12 @@
     "appId": "com.boussole.app",
     "productName": "Boussole",
     "npmRebuild": false,
+    "publish": {
+      "provider": "github",
+      "owner": "mandanbaudouin-a11y",
+      "repo": "boussole",
+      "releaseType": "release"
+    },
     "directories": {
       "output": "release"
     },
