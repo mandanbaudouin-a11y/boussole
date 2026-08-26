@@ -1,0 +1,81 @@
+{
+  "name": "boussole",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "concurrently -n api,web -c green,cyan \"npm:server\" \"vite\"",
+    "server": "node server/index.js",
+    "build": "vite build",
+    "preview": "vite preview",
+    "electron": "npm run build && electron .",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist": "npm run build && electron-builder --mac --win"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.120.0",
+    "bcrypt": "^6.0.0",
+    "better-sqlite3": "^12.11.1",
+    "express": "^5.2.1",
+    "express-session": "^1.19.0",
+    "mammoth": "^1.12.1",
+    "multer": "^2.2.0",
+    "pdf-parse": "^2.4.5",
+    "pdfkit": "^0.19.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "concurrently": "^9.2.4",
+    "electron": "^41.7.1",
+    "electron-builder": "^26.15.3",
+    "vite": "^5.4.1"
+  },
+  "overrides": {
+    "@noble/hashes": "1.8.0"
+  },
+  "build": {
+    "appId": "com.boussole.app",
+    "productName": "Boussole",
+    "npmRebuild": false,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/**/*",
+      "server/**/*",
+      "dist/**/*",
+      "package.json",
+      "!src/**/*",
+      "!index.html",
+      "!vite.config.js",
+      "!data/**/*"
+    ],
+    "asarUnpack": [
+      "**/node_modules/better-sqlite3/**/*",
+      "**/node_modules/bcrypt/**/*"
+    ],
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.education",
+      "icon": "public/android-chrome-512x512.png"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "public/android-chrome-512x512.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    }
+  }
+}
