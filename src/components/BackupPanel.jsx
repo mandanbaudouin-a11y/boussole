@@ -1,7 +1,9 @@
 import { useRef, useState } from 'react'
 import { api } from '../api'
+import { useLanguage } from '../i18n/LanguageContext'
 
 export default function BackupPanel({ onRestored }) {
+  const { t } = useLanguage()
   const fileInputRef = useRef(null)
 
   const [exporting, setExporting] = useState(false)
@@ -68,22 +70,21 @@ export default function BackupPanel({ onRestored }) {
   return (
     <div className="card backup-panel">
       <div className="card-header">
-        <p className="student-name" style={{ cursor: 'default' }}>Sauvegarde des données</p>
+        <p className="student-name" style={{ cursor: 'default' }}>{t('Sauvegarde des données')}</p>
       </div>
 
       <p className="backup-hint">
-        Toutes les données sont stockées uniquement sur cet ordinateur &mdash; pensez à exporter une
-        sauvegarde régulièrement.
+        {t('Toutes les données sont stockées uniquement sur cet ordinateur — pensez à exporter une sauvegarde régulièrement.')}
       </p>
 
       {exportError && <div className="alert alert-urgent" style={{ marginBottom: 12 }}>{exportError}</div>}
 
       <div className="form-row">
         <button className="btn" onClick={handleExport} disabled={exporting}>
-          {exporting ? 'Export en cours...' : 'Exporter une sauvegarde'}
+          {exporting ? t('Export en cours...') : t('Exporter une sauvegarde')}
         </button>
         <button className="btn" onClick={openRestoreDialog}>
-          Restaurer une sauvegarde
+          {t('Restaurer une sauvegarde')}
         </button>
       </div>
 
@@ -91,16 +92,13 @@ export default function BackupPanel({ onRestored }) {
         <div className="modal-backdrop" onClick={closeRestoreDialog}>
           <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
             <div className="card-header">
-              <p className="student-name" style={{ cursor: 'default' }}>Restaurer une sauvegarde</p>
-              <button className="icon-btn" onClick={closeRestoreDialog} title="Fermer">&times;</button>
+              <p className="student-name" style={{ cursor: 'default' }}>{t('Restaurer une sauvegarde')}</p>
+              <button className="icon-btn" onClick={closeRestoreDialog} title={t('Fermer')}>&times;</button>
             </div>
 
             <div className="alert alert-urgent" style={{ marginBottom: 16 }}>
               <span>
-                Cette action <strong>remplace définitivement</strong> tous les élèves, objectifs, taux
-                hebdomadaires et notes actuels par le contenu du fichier choisi. Elle est irréversible, sauf
-                si vous disposez vous-même d'une sauvegarde de l'état actuel. Les comptes (enseignant, EA) ne
-                sont pas affectés.
+                {t('Cette action')} <strong>{t('remplace définitivement')}</strong> {t("tous les élèves, objectifs, taux hebdomadaires et notes actuels par le contenu du fichier choisi. Elle est irréversible, sauf si vous disposez vous-même d'une sauvegarde de l'état actuel. Les comptes (enseignant, EA) ne sont pas affectés.")}
               </span>
             </div>
 
@@ -127,8 +125,7 @@ export default function BackupPanel({ onRestored }) {
                   onChange={(e) => setConfirmChecked(e.target.checked)}
                 />
                 <span>
-                  Je comprends que la restauration de <strong>{pendingFile.name}</strong> remplacera
-                  définitivement toutes les données actuelles des élèves.
+                  {t('Je comprends que la restauration de')} <strong>{pendingFile.name}</strong> {t('remplacera définitivement toutes les données actuelles des élèves.')}
                 </span>
               </label>
             )}
@@ -139,10 +136,10 @@ export default function BackupPanel({ onRestored }) {
                 onClick={confirmRestore}
                 disabled={!pendingFile || !confirmChecked || restoring}
               >
-                {restoring ? 'Restauration en cours...' : 'Restaurer et remplacer les données'}
+                {restoring ? t('Restauration en cours...') : t('Restaurer et remplacer les données')}
               </button>
               <button className="btn" onClick={closeRestoreDialog} disabled={restoring}>
-                Annuler
+                {t('Annuler')}
               </button>
             </div>
           </div>

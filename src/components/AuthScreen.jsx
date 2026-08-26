@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { TEACHER_TITLES } from '../teacherTitles'
+import { useLanguage } from '../i18n/LanguageContext'
+import LanguageToggle from './LanguageToggle'
 
 export default function AuthScreen({ mode, onSubmit, message }) {
+  const { t } = useLanguage()
   const isSetup = mode === 'setup'
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -25,23 +28,23 @@ export default function AuthScreen({ mode, onSubmit, message }) {
 
     if (isSetup) {
       if (username.trim().length < 3) {
-        setError("Le nom d'utilisateur doit contenir au moins 3 caractères.")
+        setError(t("Le nom d'utilisateur doit contenir au moins 3 caractères."))
         return
       }
       if (password.length < 8) {
-        setError('Le mot de passe doit contenir au moins 8 caractères.')
+        setError(t('Le mot de passe doit contenir au moins 8 caractères.'))
         return
       }
       if (password !== confirmPassword) {
-        setError('Les deux mots de passe ne correspondent pas.')
+        setError(t('Les deux mots de passe ne correspondent pas.'))
         return
       }
       if (!nomComplet.trim()) {
-        setError('Le nom complet est requis.')
+        setError(t('Le nom complet est requis.'))
         return
       }
       if (!courriel.trim() || !courriel.includes('@')) {
-        setError('Un courriel valide est requis.')
+        setError(t('Un courriel valide est requis.'))
         return
       }
     }
@@ -71,25 +74,28 @@ export default function AuthScreen({ mode, onSubmit, message }) {
     <div className="auth-shell">
       <div className="auth-split">
         <div className="auth-panel-brand">
-          <div className="brand-row">
-            <img src="/logo-boussole-icon.svg" alt="" className="brand-icon" />
-            <span className="brand" style={{ color: '#fff', fontSize: 24 }}>Boussole</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <div className="brand-row" style={{ marginBottom: 0 }}>
+              <img src="/logo-boussole-icon.svg" alt="" className="brand-icon" />
+              <span className="brand" style={{ color: '#fff', fontSize: 24 }}>Boussole</span>
+            </div>
+            <LanguageToggle className="on-dark" />
           </div>
           <div>
-            <h2 className="auth-tagline">Les plans d'enseignement individualisé, au même endroit.</h2>
+            <h2 className="auth-tagline">{t("Les plans d'enseignement individualisé, au même endroit.")}</h2>
             <p className="auth-tagline-sub">
-              Suivi des objectifs, adaptations et révisions — prêt à partager en rencontre avec les parents.
+              {t('Suivi des objectifs, adaptations et révisions — prêt à partager en rencontre avec les parents.')}
             </p>
           </div>
-          <p className="auth-panel-brand-footer">École Rivière-Rouge</p>
+          <p className="auth-panel-brand-footer">{t('École Rivière-Rouge')}</p>
         </div>
 
         <form className="auth-panel-form" onSubmit={submit}>
         <p className="auth-subtitle" style={{ fontSize: 22, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>
-          {isSetup ? 'Créer un compte' : 'Connexion'}
+          {isSetup ? t('Créer un compte') : t('Connexion')}
         </p>
         <p className="auth-subtitle">
-          {isSetup ? 'Compte enseignant — accès complet à l\'application' : 'Accédez à vos élèves et à leurs PEI'}
+          {isSetup ? t("Compte enseignant — accès complet à l'application") : t('Accédez à vos élèves et à leurs PEI')}
         </p>
 
         {message && <div className="alert alert-warning" style={{ marginBottom: 16 }}>{message}</div>}
@@ -97,27 +103,27 @@ export default function AuthScreen({ mode, onSubmit, message }) {
 
         {!isSetup && (
           <>
-            <span className="auth-label">Se connecter en tant que</span>
+            <span className="auth-label">{t('Se connecter en tant que')}</span>
             <div className="role-toggle">
               <button
                 type="button"
                 className={`role-toggle-btn ${role === 'enseignant' ? 'active' : ''}`}
                 onClick={() => setRole('enseignant')}
               >
-                Enseignant
+                {t('Enseignant')}
               </button>
               <button
                 type="button"
                 className={`role-toggle-btn ${role === 'ea' ? 'active' : ''}`}
                 onClick={() => setRole('ea')}
               >
-                EA
+                {t('EA')}
               </button>
             </div>
           </>
         )}
 
-        <label className="auth-label" htmlFor="username">Nom d'utilisateur</label>
+        <label className="auth-label" htmlFor="username">{t("Nom d'utilisateur")}</label>
         <input
           id="username"
           className="text-input"
@@ -128,7 +134,7 @@ export default function AuthScreen({ mode, onSubmit, message }) {
           autoComplete="username"
         />
 
-        <label className="auth-label" htmlFor="password">Mot de passe</label>
+        <label className="auth-label" htmlFor="password">{t('Mot de passe')}</label>
         <input
           id="password"
           type="password"
@@ -141,7 +147,7 @@ export default function AuthScreen({ mode, onSubmit, message }) {
 
         {isSetup && (
           <>
-            <label className="auth-label" htmlFor="confirm-password">Confirmer le mot de passe</label>
+            <label className="auth-label" htmlFor="confirm-password">{t('Confirmer le mot de passe')}</label>
             <input
               id="confirm-password"
               type="password"
@@ -152,7 +158,7 @@ export default function AuthScreen({ mode, onSubmit, message }) {
               autoComplete="new-password"
             />
 
-            <label className="auth-label" htmlFor="nom-complet">Nom complet</label>
+            <label className="auth-label" htmlFor="nom-complet">{t('Nom complet')}</label>
             <input
               id="nom-complet"
               className="text-input"
@@ -162,7 +168,7 @@ export default function AuthScreen({ mode, onSubmit, message }) {
               autoComplete="name"
             />
 
-            <label className="auth-label" htmlFor="courriel">Courriel</label>
+            <label className="auth-label" htmlFor="courriel">{t('Courriel')}</label>
             <input
               id="courriel"
               type="email"
@@ -179,12 +185,12 @@ export default function AuthScreen({ mode, onSubmit, message }) {
               style={{ marginBottom: showSchoolInfo ? 12 : 22 }}
               onClick={() => setShowSchoolInfo((v) => !v)}
             >
-              {showSchoolInfo ? 'Masquer' : 'Ajouter'} les infos de l'école — optionnel
+              {showSchoolInfo ? t('Masquer') : t('Ajouter')} {t("les infos de l'école — optionnel")}
             </button>
 
             {showSchoolInfo && (
               <div style={{ marginBottom: 14 }}>
-                <label className="auth-label" htmlFor="ecole">École</label>
+                <label className="auth-label" htmlFor="ecole">{t('École')}</label>
                 <input
                   id="ecole"
                   className="text-input"
@@ -194,7 +200,7 @@ export default function AuthScreen({ mode, onSubmit, message }) {
                   onChange={(e) => setEcole(e.target.value)}
                 />
 
-                <label className="auth-label" htmlFor="division">Division scolaire</label>
+                <label className="auth-label" htmlFor="division">{t('Division scolaire')}</label>
                 <input
                   id="division"
                   className="text-input"
@@ -204,7 +210,7 @@ export default function AuthScreen({ mode, onSubmit, message }) {
                   onChange={(e) => setDivisionScolaire(e.target.value)}
                 />
 
-                <label className="auth-label" htmlFor="annee">Année scolaire</label>
+                <label className="auth-label" htmlFor="annee">{t('Année scolaire')}</label>
                 <input
                   id="annee"
                   className="text-input"
@@ -214,7 +220,7 @@ export default function AuthScreen({ mode, onSubmit, message }) {
                   onChange={(e) => setAnneeScolaire(e.target.value)}
                 />
 
-                <label className="auth-label" htmlFor="titre">Titre</label>
+                <label className="auth-label" htmlFor="titre">{t('Titre')}</label>
                 <select
                   id="titre"
                   className="text-input"
@@ -222,9 +228,9 @@ export default function AuthScreen({ mode, onSubmit, message }) {
                   value={titre}
                   onChange={(e) => setTitre(e.target.value)}
                 >
-                  <option value="">—</option>
-                  {TEACHER_TITLES.map((t) => (
-                    <option key={t.value} value={t.value}>{t.label}</option>
+                  <option value="">{t('—')}</option>
+                  {TEACHER_TITLES.map((t2) => (
+                    <option key={t2.value} value={t2.value}>{t(t2.label)}</option>
                   ))}
                 </select>
               </div>
@@ -239,15 +245,14 @@ export default function AuthScreen({ mode, onSubmit, message }) {
                 onChange={(e) => setLaipvpAcknowledged(e.target.checked)}
               />
               <span>
-                Je comprends que les données des élèves sont stockées localement sur cet ordinateur et que
-                je suis responsable de leur protection conformément à la LAIPVP/FIPPA (Manitoba).
+                {t('Je comprends que les données des élèves sont stockées localement sur cet ordinateur et que je suis responsable de leur protection conformément à la LAIPVP/FIPPA (Manitoba).')}
               </span>
             </label>
           </>
         )}
 
         <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
-          {loading ? 'Veuillez patienter...' : isSetup ? 'Créer le compte' : 'Se connecter'}
+          {loading ? t('Veuillez patienter...') : isSetup ? t('Créer le compte') : t('Se connecter')}
         </button>
         </form>
       </div>

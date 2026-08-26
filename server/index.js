@@ -749,6 +749,7 @@ function reportHeaderOptions(req) {
     ecole: teacher?.ecole || null,
     divisionScolaire: teacher?.divisionScolaire || null,
     generatedBy: (req.session.role === 'enseignant' && teacher?.nomComplet) || req.session.username || null,
+    lang: req.query.lang === 'en' ? 'en' : 'fr',
   }
 }
 
@@ -815,7 +816,8 @@ app.post('/api/students/:id/ai-report', requireRole('enseignant'), async (req, r
   if (!row) return notFound(res, 'Élève')
 
   try {
-    const draft = await generateNarrativeReport(toStudentDTO(row))
+    const lang = req.body.lang === 'en' ? 'en' : 'fr'
+    const draft = await generateNarrativeReport(toStudentDTO(row), lang)
     insertAiGenerationLog.run(req.params.id, req.session.username || null)
     res.json({ draft })
   } catch (e) {
@@ -833,9 +835,10 @@ app.post('/api/students/:id/suggest-text', requireRole('enseignant'), async (req
     return res.status(400).json({ error: 'Champ invalide.' })
   }
   const draft = typeof req.body.draft === 'string' ? req.body.draft : ''
+  const lang = req.body.lang === 'en' ? 'en' : 'fr'
 
   try {
-    const suggestion = await suggestFieldText(toStudentDTO(row), field, draft)
+    const suggestion = await suggestFieldText(toStudentDTO(row), field, draft, lang)
     insertAiGenerationLog.run(req.params.id, req.session.username || null)
     res.json({ suggestion })
   } catch (e) {

@@ -3,15 +3,18 @@ import { api } from './api'
 import { auth } from './auth'
 import { useIdleTimer } from './hooks/useIdleTimer'
 import { useRoute, studentIdFromPath, studentPath } from './router'
+import { useLanguage } from './i18n/LanguageContext'
 import AuthScreen from './components/AuthScreen'
 import Dashboard from './components/Dashboard'
 import StudentPage from './components/StudentPage'
 import AccountsAdmin from './components/AccountsAdmin'
 import UpcomingReviews from './components/UpcomingReviews'
+import LanguageToggle from './components/LanguageToggle'
 
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000
 
 export default function App() {
+  const { t } = useLanguage()
   const [authStatus, setAuthStatus] = useState('loading') // loading | setup | login | authenticated
   const [authMessage, setAuthMessage] = useState(null)
   const [username, setUsername] = useState(null)
@@ -75,7 +78,7 @@ export default function App() {
     } catch (e) {
       if (e.authRequired) {
         setAuthStatus('login')
-        setAuthMessage('Votre session a expiré. Veuillez vous reconnecter.')
+        setAuthMessage(t('Votre session a expiré. Veuillez vous reconnecter.'))
       } else {
         setError(e.message)
       }
@@ -114,7 +117,7 @@ export default function App() {
 
   useIdleTimer(
     IDLE_TIMEOUT_MS,
-    () => handleLogout("Déconnexion automatique après 30 minutes d'inactivité."),
+    () => handleLogout(t("Déconnexion automatique après 30 minutes d'inactivité.")),
     authStatus === 'authenticated'
   )
 
@@ -318,18 +321,18 @@ export default function App() {
   const activeStudent = activeStudentIndex >= 0 ? students[activeStudentIndex] : undefined
 
   const navItems = [
-    { key: '/', label: 'Tableau de bord' },
-    { key: '/revisions', label: 'Révisions', badge: (() => {
+    { key: '/', label: t('Tableau de bord') },
+    { key: '/revisions', label: t('Révisions'), badge: (() => {
       const n = students.filter((s) => s.reviewInDays <= 30).length
       return n > 0 ? n : null
     })() },
-    ...(role === 'enseignant' ? [{ key: '/comptes', label: 'Comptes' }] : []),
+    ...(role === 'enseignant' ? [{ key: '/comptes', label: t('Comptes') }] : []),
   ]
 
   if (authStatus === 'loading') {
     return (
       <div className="auth-shell">
-        <p className="page-date">Chargement&hellip;</p>
+        <p className="page-date">{t('Chargement…')}</p>
       </div>
     )
   }
@@ -345,11 +348,14 @@ export default function App() {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <div className="brand-row">
-          <img src="/logo-boussole-icon.svg" alt="" className="brand-icon" />
-          <p className="brand">Boussole</p>
+        <div className="brand-row" style={{ justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <img src="/logo-boussole-icon.svg" alt="" className="brand-icon" />
+            <p className="brand">Boussole</p>
+          </div>
         </div>
-        <p className="brand-sub">École Rivière-Rouge &middot; Prototype</p>
+        <p className="brand-sub">{t('École Rivière-Rouge · Prototype')}</p>
+        <LanguageToggle className="on-dark" style={{ marginBottom: 20 }} />
         <nav className="nav">
           {navItems.map((item) => (
             <button
@@ -366,25 +372,25 @@ export default function App() {
         <div className="sidebar-footer">
           {username && (
             <div className="sidebar-user-row">
-              <span className="role-pill">{role === 'enseignant' ? 'Enseignant' : 'EA'}</span>
+              <span className="role-pill">{role === 'enseignant' ? t('Enseignant') : t('EA')}</span>
               <span className="sidebar-user">{username}</span>
             </div>
           )}
           <button className="logout-btn" onClick={() => handleLogout()}>
-            Déconnexion
+            {t('Déconnexion')}
           </button>
-          <p>Base de données SQLite locale &mdash; les changements sont enregistrés sur ce poste.</p>
+          <p>{t('Base de données SQLite locale — les changements sont enregistrés sur ce poste.')}</p>
         </div>
       </aside>
 
       <main className="main">
         {error && (
           <div className="alert alert-urgent" style={{ marginBottom: 16 }} onClick={() => setError(null)}>
-            {error} (cliquer pour fermer)
+            {error} {t('(cliquer pour fermer)')}
           </div>
         )}
 
-        {loading && <p className="page-date">Chargement des données&hellip;</p>}
+        {loading && <p className="page-date">{t('Chargement des données…')}</p>}
 
         {!loading && path === '/' && (
           <Dashboard

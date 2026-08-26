@@ -173,6 +173,45 @@ body {
   flex-wrap: wrap;
 }
 
+.lang-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.lang-toggle button {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border: none;
+  background: none;
+  color: var(--ink-soft);
+  padding: 5px 11px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.lang-toggle button.active {
+  background: var(--chalk);
+  color: #fff;
+}
+
+.lang-toggle.on-dark {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.lang-toggle.on-dark button {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.lang-toggle.on-dark button.active {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
 .role-pill {
   font-size: 11px;
   font-weight: 700;

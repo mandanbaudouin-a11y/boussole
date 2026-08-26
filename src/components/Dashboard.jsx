@@ -5,8 +5,10 @@ import { api } from '../api'
 import { triggerBlobDownload } from '../downloadBlob'
 import { defaultNextReviewDate, reviewDaysLabel } from '../reviewDate'
 import { initials, avatarColor } from '../avatar'
+import { useLanguage } from '../i18n/LanguageContext'
 
 function NewStudentForm({ onAddStudent, onDone }) {
+  const { t } = useLanguage()
   const [name, setName] = useState('')
   const [grade, setGrade] = useState('')
   const [nextReviewDate, setNextReviewDate] = useState(defaultNextReviewDate())
@@ -24,19 +26,19 @@ function NewStudentForm({ onAddStudent, onDone }) {
   return (
     <form className="card new-student-form" style={{ flex: '1 1 100%' }} onSubmit={submit}>
       <div className="card-header">
-        <p className="student-name" style={{ cursor: 'default' }}>Nouvel élève</p>
+        <p className="student-name" style={{ cursor: 'default' }}>{t('Nouvel élève')}</p>
       </div>
       <div className="form-row">
         <input
           className="text-input"
-          placeholder="Nom de l'élève"
+          placeholder={t("Nom de l'élève")}
           value={name}
           onChange={(e) => setName(e.target.value)}
           autoFocus
         />
         <input
           className="text-input"
-          placeholder="Niveau (ex. 2e année)"
+          placeholder={t('Niveau (ex. 2e année)')}
           value={grade}
           onChange={(e) => setGrade(e.target.value)}
         />
@@ -44,20 +46,21 @@ function NewStudentForm({ onAddStudent, onDone }) {
           className="text-input"
           type="date"
           style={{ maxWidth: 160 }}
-          title="Prochaine révision du PEI"
+          title={t('Prochaine révision du PEI')}
           value={nextReviewDate}
           onChange={(e) => setNextReviewDate(e.target.value)}
         />
       </div>
       <div className="form-row" style={{ marginTop: 10 }}>
-        <button type="submit" className="btn btn-primary">Ajouter</button>
-        <button type="button" className="btn" onClick={onDone}>Annuler</button>
+        <button type="submit" className="btn btn-primary">{t('Ajouter')}</button>
+        <button type="button" className="btn" onClick={onDone}>{t('Annuler')}</button>
       </div>
     </form>
   )
 }
 
 function StudentCard({ student, canEdit, onOpenStudent, onRemoveStudent }) {
+  const { t } = useLanguage()
   const achievedCount = student.goals.filter((g) => g.status === 'atteint' || g.status === 'depasse').length
   const goalCount = student.goals.length
   const late = student.reviewInDays < 0
@@ -75,10 +78,10 @@ function StudentCard({ student, canEdit, onOpenStudent, onRemoveStudent }) {
         {canEdit && (
           <button
             className="icon-btn icon-btn-danger"
-            title="Supprimer l'élève"
+            title={t("Supprimer l'élève")}
             onClick={(e) => {
               e.stopPropagation()
-              if (confirm(`Supprimer ${student.name} et tous ses objectifs ?`)) onRemoveStudent(student.id)
+              if (confirm(t('Supprimer {name} et tous ses objectifs ?', { name: student.name }))) onRemoveStudent(student.id)
             }}
           >
             &times;
@@ -96,11 +99,11 @@ function StudentCard({ student, canEdit, onOpenStudent, onRemoveStudent }) {
 
       <div className="student-card-footer">
         <span>
-          {goalCount} objectif{goalCount > 1 ? 's' : ''}
-          {goalCount > 0 && ` · ${achievedCount} atteint${achievedCount > 1 ? 's' : ''}`}
+          {goalCount} {t(goalCount > 1 ? 'objectifs' : 'objectif')}
+          {goalCount > 0 && ` · ${achievedCount} ${t(achievedCount > 1 ? 'atteints' : 'atteint')}`}
         </span>
         <span className={`review-pill ${late ? 'late' : 'ok'}`}>
-          {late ? reviewDaysLabel(student.reviewInDays) : 'À jour'}
+          {late ? reviewDaysLabel(student.reviewInDays, t) : t('À jour')}
         </span>
       </div>
     </div>
@@ -116,13 +119,14 @@ export default function Dashboard({
   onImportStudent,
   onDataRestored,
 }) {
+  const { t, lang } = useLanguage()
   const [addOpen, setAddOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [exportingClassPdf, setExportingClassPdf] = useState(false)
   const [pdfError, setPdfError] = useState(null)
   const canEdit = role === 'enseignant'
 
-  const today = new Date().toLocaleDateString('fr-CA', {
+  const today = new Date().toLocaleDateString(lang === 'en' ? 'en-CA' : 'fr-CA', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -137,7 +141,7 @@ export default function Dashboard({
     setPdfError(null)
     setExportingClassPdf(true)
     try {
-      const { blob, filename } = await api.downloadCombinedReportPdf()
+      const { blob, filename } = await api.downloadCombinedReportPdf(lang)
       triggerBlobDownload(blob, filename)
     } catch (err) {
       setPdfError(err.message)
@@ -149,30 +153,30 @@ export default function Dashboard({
   return (
     <div>
       <p className="page-date">{today}</p>
-      <h1 className="page-title">Suivi du jour</h1>
+      <h1 className="page-title">{t('Suivi du jour')}</h1>
 
       {students.length > 0 && (
         <div className="stat-grid">
           <div className="stat-card">
-            <p className="stat-label">Élèves suivis</p>
+            <p className="stat-label">{t('Élèves suivis')}</p>
             <p className="stat-value">{students.length}</p>
           </div>
           <div className="stat-card">
-            <p className="stat-label">Objectifs actifs</p>
-            <p className="stat-value">{totalGoals}<span style={{ fontSize: 14, fontWeight: 400, color: 'var(--ink-soft)', marginLeft: 6 }}>{goalsInProgress} en progrès</span></p>
+            <p className="stat-label">{t('Objectifs actifs')}</p>
+            <p className="stat-value">{totalGoals}<span style={{ fontSize: 14, fontWeight: 400, color: 'var(--ink-soft)', marginLeft: 6 }}>{goalsInProgress} {t('en progrès')}</span></p>
           </div>
           <div className="stat-card">
-            <p className="stat-label">Révisions à venir</p>
-            <p className="stat-value">{upcomingReviews}<span style={{ fontSize: 14, fontWeight: 400, color: 'var(--ink-soft)', marginLeft: 6 }}>d'ici 2 semaines</span></p>
+            <p className="stat-label">{t('Révisions à venir')}</p>
+            <p className="stat-value">{upcomingReviews}<span style={{ fontSize: 14, fontWeight: 400, color: 'var(--ink-soft)', marginLeft: 6 }}>{t("d'ici 2 semaines")}</span></p>
           </div>
         </div>
       )}
 
       {canEdit && (
         <div className="form-row" style={{ marginBottom: 20 }}>
-          <button className="btn btn-primary" onClick={() => setAddOpen(true)}>+ Nouvel élève</button>
+          <button className="btn btn-primary" onClick={() => setAddOpen(true)}>+ {t('Nouvel élève')}</button>
           <button className="btn" onClick={() => setImportOpen(true)}>
-            Importer un PEI
+            {t('Importer un PEI')}
           </button>
         </div>
       )}
@@ -186,7 +190,7 @@ export default function Dashboard({
       {students.length > 0 && (
         <div className="form-row" style={{ marginBottom: 20 }}>
           <button className="btn" onClick={handleExportClassPdf} disabled={exportingClassPdf}>
-            {exportingClassPdf ? 'Export en cours...' : 'Exporter tous les rapports en PDF'}
+            {exportingClassPdf ? t('Export en cours...') : t('Exporter tous les rapports en PDF')}
           </button>
         </div>
       )}
@@ -206,18 +210,18 @@ export default function Dashboard({
       {students.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon">✦</div>
-          <p className="empty-state-title">Aucun élève pour le moment</p>
+          <p className="empty-state-title">{t('Aucun élève pour le moment')}</p>
           <p className="empty-state-body">
-            Créez une première fiche pour commencer le suivi d'un PEI, ou importez un document existant.
+            {t("Créez une première fiche pour commencer le suivi d'un PEI, ou importez un document existant.")}
           </p>
           {canEdit && (
-            <button className="btn btn-primary" onClick={() => setAddOpen(true)}>+ Nouvel élève</button>
+            <button className="btn btn-primary" onClick={() => setAddOpen(true)}>+ {t('Nouvel élève')}</button>
           )}
         </div>
       ) : (
         <>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14, marginTop: 28 }}>
-            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Mes élèves</h2>
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>{t('Mes élèves')}</h2>
             <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
           </div>
           <div className="student-grid">
@@ -233,9 +237,9 @@ export default function Dashboard({
             {canEdit && (
               <button type="button" className="dashed-card" onClick={() => setAddOpen(true)}>
                 <span className="dashed-card-icon">✦</span>
-                <span style={{ fontSize: 15, fontWeight: 600 }}>Ajouter un élève</span>
+                <span style={{ fontSize: 15, fontWeight: 600 }}>{t('Ajouter un élève')}</span>
                 <span style={{ fontSize: 13.5, color: 'var(--ink-soft)', maxWidth: 190 }}>
-                  Créez un PEI à partir d'une page vierge ou d'un import.
+                  {t("Créez un PEI à partir d'une page vierge ou d'un import.")}
                 </span>
               </button>
             )}
@@ -245,7 +249,7 @@ export default function Dashboard({
 
       {nextReview && (
         <div className={`alert ${nextReview.reviewInDays <= 7 ? 'alert-urgent' : 'alert-warning'}`} style={{ marginTop: 20 }}>
-          Révision du PEI de {nextReview.name} {reviewDaysLabel(nextReview.reviewInDays)}
+          {t('Révision du PEI de {name} {days}', { name: nextReview.name, days: reviewDaysLabel(nextReview.reviewInDays, t) })}
         </div>
       )}
     </div>

@@ -10,8 +10,11 @@ export function defaultNextReviewDate() {
   return `${y}-${m}-${day}`
 }
 
-export function reviewDaysLabel(days) {
-  if (days < 0) return `en retard de ${Math.abs(days)} jour${Math.abs(days) > 1 ? 's' : ''}`
-  if (days === 0) return "aujourd'hui"
-  return `dans ${days} jour${days > 1 ? 's' : ''}`
+// t est le t() de useLanguage() ; optionnel pour les appelants qui n'ont pas
+// accès au contexte de langue (garde le français par défaut dans ce cas).
+export function reviewDaysLabel(days, t = (s) => s) {
+  const n = Math.abs(days)
+  if (days < 0) return t(n > 1 ? 'en retard de {n} jours' : 'en retard de {n} jour', { n })
+  if (days === 0) return t("aujourd'hui")
+  return t(days > 1 ? 'dans {n} jours' : 'dans {n} jour', { n: days })
 }

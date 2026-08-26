@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { api } from '../api'
 import { defaultNextReviewDate } from '../reviewDate'
+import { useLanguage } from '../i18n/LanguageContext'
 
 const STEP = { PICK: 'pick', LOADING: 'loading', REVIEW: 'review' }
 
@@ -9,6 +10,7 @@ function emptyGoalList(goals) {
 }
 
 export default function ImportPeiModal({ open, onClose, onImport }) {
+  const { t } = useLanguage()
   const fileInputRef = useRef(null)
   const [step, setStep] = useState(STEP.PICK)
   const [error, setError] = useState(null)
@@ -78,7 +80,7 @@ export default function ImportPeiModal({ open, onClose, onImport }) {
 
   const confirm = async () => {
     if (!name.trim() || !grade.trim()) {
-      setError("Le nom et le niveau de l'élève sont requis avant de confirmer.")
+      setError(t("Le nom et le niveau de l'élève sont requis avant de confirmer."))
       return
     }
     setSaving(true)
@@ -101,15 +103,14 @@ export default function ImportPeiModal({ open, onClose, onImport }) {
     <div className="modal-backdrop" onClick={close}>
       <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
         <div className="card-header">
-          <p className="student-name" style={{ cursor: 'default' }}>Importer un PEI</p>
-          <button className="icon-btn" onClick={close} title="Fermer">&times;</button>
+          <p className="student-name" style={{ cursor: 'default' }}>{t('Importer un PEI')}</p>
+          <button className="icon-btn" onClick={close} title={t('Fermer')}>&times;</button>
         </div>
 
         {step !== STEP.REVIEW && (
           <p className="report-body" style={{ marginTop: 0 }}>
-            Choisissez un fichier PDF ou Word (.docx). Le texte sera extrait automatiquement, mais
-            <strong> rien n'est ajouté à la base tant que vous n'avez pas vérifié et confirmé</strong> les
-            champs ci-dessous.
+            {t('Choisissez un fichier PDF ou Word (.docx). Le texte sera extrait automatiquement, mais')}
+            <strong> {t("rien n'est ajouté à la base tant que vous n'avez pas vérifié et confirmé")}</strong> {t('les champs ci-dessous.')}
           </p>
         )}
 
@@ -132,7 +133,7 @@ export default function ImportPeiModal({ open, onClose, onImport }) {
         )}
 
         {step === STEP.LOADING && (
-          <p className="page-date">Extraction du texte de {fileName}&hellip;</p>
+          <p className="page-date">{t('Extraction du texte de {file}…', { file: fileName })}</p>
         )}
 
         {step === STEP.REVIEW && (
@@ -143,18 +144,18 @@ export default function ImportPeiModal({ open, onClose, onImport }) {
               </div>
             )}
 
-            <p className="page-date" style={{ marginBottom: 4 }}>Fichier : {fileName}</p>
+            <p className="page-date" style={{ marginBottom: 4 }}>{t('Fichier : {file}', { file: fileName })}</p>
 
             <div className="form-row">
               <input
                 className="text-input"
-                placeholder="Nom de l'élève"
+                placeholder={t("Nom de l'élève")}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
               <input
                 className="text-input"
-                placeholder="Niveau (ex. 2e année)"
+                placeholder={t('Niveau (ex. 2e année)')}
                 value={grade}
                 onChange={(e) => setGrade(e.target.value)}
               />
@@ -162,15 +163,15 @@ export default function ImportPeiModal({ open, onClose, onImport }) {
                 className="text-input"
                 type="date"
                 style={{ maxWidth: 180 }}
-                title="Prochaine révision du PEI"
+                title={t('Prochaine révision du PEI')}
                 value={nextReviewDate}
                 onChange={(e) => setNextReviewDate(e.target.value)}
               />
             </div>
 
-            <p className="report-section-title">Objectifs détectés</p>
+            <p className="report-section-title">{t('Objectifs détectés')}</p>
             <p className="page-date" style={{ marginTop: -6, marginBottom: 10 }}>
-              Vérifiez, corrigez ou supprimez chaque ligne avant de confirmer.
+              {t('Vérifiez, corrigez ou supprimez chaque ligne avant de confirmer.')}
             </p>
 
             {goals.map((goal, i) => (
@@ -179,16 +180,16 @@ export default function ImportPeiModal({ open, onClose, onImport }) {
                   className="text-input"
                   value={goal}
                   onChange={(e) => updateGoal(i, e.target.value)}
-                  placeholder="Objectif"
+                  placeholder={t('Objectif')}
                 />
-                <button className="icon-btn icon-btn-danger" onClick={() => removeGoal(i)} title="Supprimer">
+                <button className="icon-btn icon-btn-danger" onClick={() => removeGoal(i)} title={t('Supprimer')}>
                   &times;
                 </button>
               </div>
             ))}
 
             <button className="btn" style={{ marginTop: 10 }} onClick={addGoal}>
-              + Ajouter une ligne
+              + {t('Ajouter une ligne')}
             </button>
 
             <div style={{ marginTop: 18 }}>
@@ -197,19 +198,19 @@ export default function ImportPeiModal({ open, onClose, onImport }) {
                 style={{ marginBottom: 8 }}
                 onClick={() => setShowRawText((v) => !v)}
               >
-                {showRawText ? 'Masquer' : 'Afficher'} le texte extrait du document
+                {showRawText ? t('Masquer') : t('Afficher')} {t('le texte extrait du document')}
               </button>
               {showRawText && (
-                <pre className="raw-text-preview">{rawText || '(aucun texte extrait)'}</pre>
+                <pre className="raw-text-preview">{rawText || t('(aucun texte extrait)')}</pre>
               )}
             </div>
 
             <div className="form-row" style={{ marginTop: 20 }}>
               <button className="btn btn-primary" onClick={confirm} disabled={saving}>
-                {saving ? 'Ajout en cours...' : "Confirmer et ajouter l'élève"}
+                {saving ? t('Ajout en cours...') : t("Confirmer et ajouter l'élève")}
               </button>
               <button className="btn" onClick={close} disabled={saving}>
-                Annuler
+                {t('Annuler')}
               </button>
             </div>
           </div>

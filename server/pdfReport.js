@@ -2,6 +2,7 @@ import PDFDocument from 'pdfkit'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { GOAL_STATUS_LABELS, STRATEGY_CATEGORY_LABELS, ADAPTATION_SUBTYPE_LABELS, MODIFICATION_TYPE_LABELS } from './db.js'
+import { t } from './i18nEn.js'
 
 // Rapport PEI en PDF. Le rendu est fait à la main avec PDFKit (plutôt que
 // puppeteer/playwright) pour éviter d'embarquer un second Chromium dans une
@@ -15,15 +16,21 @@ const FONT_REGULAR = path.join(__dirname, 'assets', 'fonts', 'DejaVuSans.ttf')
 const FONT_BOLD = path.join(__dirname, 'assets', 'fonts', 'DejaVuSans-Bold.ttf')
 const LOGO_ICON = path.join(__dirname, 'assets', 'logo', 'icon.png')
 
-function reviewDaysLabel(days) {
-  if (days < 0) return `en retard de ${Math.abs(days)} jour${Math.abs(days) > 1 ? 's' : ''}`
+function reviewDaysLabel(days, lang) {
+  const n = Math.abs(days)
+  if (lang === 'en') {
+    if (days < 0) return `overdue by ${n} day${n > 1 ? 's' : ''}`
+    if (days === 0) return 'today'
+    return `in ${days} day${days > 1 ? 's' : ''}`
+  }
+  if (days < 0) return `en retard de ${n} jour${n > 1 ? 's' : ''}`
   if (days === 0) return "aujourd'hui"
   return `dans ${days} jour${days > 1 ? 's' : ''}`
 }
 
-function formatDateFr(dateStr) {
+function formatDateLocalized(dateStr, lang) {
   if (!dateStr) return null
-  return new Date(`${dateStr}T00:00:00`).toLocaleDateString('fr-CA', { day: 'numeric', month: 'long', year: 'numeric' })
+  return new Date(`${dateStr}T00:00:00`).toLocaleDateString(lang === 'en' ? 'en-CA' : 'fr-CA', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
 const COLORS = {
@@ -42,7 +49,7 @@ const COLORS = {
   category: { bg: '#EEF1EC', fg: '#5B6B63' },
 }
 
-function reportSummaryText(student) {
+function reportSummaryText(student, lang) {
   if (student.narrativeReport && student.narrativeReport.trim()) {
     return student.narrativeReport.trim()
   }
@@ -50,6 +57,21 @@ function reportSummaryText(student) {
   const doneCount = student.goals.filter((g) => g.done).length
   const hasWeeklyRate = student.weeklyRate.length > 0
   const firstName = student.name.split(' ')[0]
+
+  if (lang === 'en') {
+    if (!hasWeeklyRate) {
+      return `No weekly history is available yet for ${firstName}. Today, ${doneCount} of ${student.goals.length} goal${student.goals.length > 1 ? 's' : ''} ${doneCount > 1 ? 'have' : 'has'} been marked as achieved.`
+    }
+    const avgRate = Math.round(student.weeklyRate.reduce((sum, w) => sum + w.pct, 0) / student.weeklyRate.length)
+    const firstRate = student.weeklyRate[0].pct
+    const lastRate = student.weeklyRate[student.weeklyRate.length - 1].pct
+    return (
+      `Over the last ${student.weeklyRate.length} weeks, ${firstName} reached an average success rate ` +
+      `of ${avgRate}% across all active goals in their IEP. Today, ${doneCount} of ${student.goals.length} goal${student.goals.length > 1 ? 's' : ''} ${doneCount > 1 ? 'have' : 'has'} been marked as achieved. The weekly ` +
+      `trend is ${lastRate >= firstRate ? 'trending up' : 'stable'}, moving ` +
+      `from ${firstRate}% in week 1 to ${lastRate}% in week ${student.weeklyRate.length}.`
+    )
+  }
 
   if (!hasWeeklyRate) {
     return `Aucun historique hebdomadaire n'est encore disponible pour ${firstName}. Aujourd'hui, ${doneCount} objectif${doneCount > 1 ? 's' : ''} sur ${student.goals.length} ${doneCount > 1 ? 'ont' : 'a'} été coché${doneCount > 1 ? 's' : ''} comme atteint${doneCount > 1 ? 's' : ''}.`
@@ -98,7 +120,7 @@ function drawPill(doc, text, x, y, { bg, fg, font = 'bold', fontSize = 8 }) {
   return width
 }
 
-function drawStrategyChips(doc, strategies, startX, startY, maxWidth) {
+function drawStrategyChips(doc, strategies, startX, startY, maxWidth, lang) {
   let x = startX
   let y = startY
   const gap = 6
@@ -106,7 +128,8 @@ function drawStrategyChips(doc, strategies, startX, startY, maxWidth) {
 
   for (const s of strategies) {
     doc.font('regular').fontSize(9)
-    const label = s.category ? `${STRATEGY_CATEGORY_LABELS[s.category]}  ${s.label}` : s.label
+    const categoryLabel = s.category ? t(STRATEGY_CATEGORY_LABELS[s.category], lang) : null
+    const label = categoryLabel ? `${categoryLabel}  ${s.label}` : s.label
     const chipWidth = doc.widthOfString(label) + 16 + (s.category ? 4 : 0)
 
     if (x !== startX && x + chipWidth > startX + maxWidth) {
@@ -116,13 +139,13 @@ function drawStrategyChips(doc, strategies, startX, startY, maxWidth) {
 
     doc.roundedRect(x, y, chipWidth, rowHeight, 4).fillAndStroke('#FFFFFF', COLORS.border)
     let textX = x + 8
-    if (s.category) {
+    if (categoryLabel) {
       doc
         .font('bold')
         .fontSize(7.5)
         .fillColor(COLORS.category.fg)
-        .text(STRATEGY_CATEGORY_LABELS[s.category].toUpperCase(), textX, y + 7, { lineBreak: false, characterSpacing: 0.3 })
-      textX += doc.widthOfString(STRATEGY_CATEGORY_LABELS[s.category].toUpperCase()) + 6
+        .text(categoryLabel.toUpperCase(), textX, y + 7, { lineBreak: false, characterSpacing: 0.3 })
+      textX += doc.widthOfString(categoryLabel.toUpperCase()) + 6
     }
     doc.font('regular').fontSize(9).fillColor(COLORS.ink).text(s.label, textX, y + 6.5, { lineBreak: false })
 
@@ -132,9 +155,9 @@ function drawStrategyChips(doc, strategies, startX, startY, maxWidth) {
   return y + rowHeight
 }
 
-function renderStudent(doc, student, { ecole, divisionScolaire, generatedBy }) {
+function renderStudent(doc, student, { ecole, divisionScolaire, generatedBy, lang = 'fr' }) {
   const contentWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right
-  const today = new Date().toLocaleDateString('fr-CA', { day: 'numeric', month: 'long', year: 'numeric' })
+  const today = new Date().toLocaleDateString(lang === 'en' ? 'en-CA' : 'fr-CA', { day: 'numeric', month: 'long', year: 'numeric' })
 
   const logoSize = 26
   const cursorX = doc.x
@@ -143,13 +166,17 @@ function renderStudent(doc, student, { ecole, divisionScolaire, generatedBy }) {
   doc.x = cursorX
   doc.y = cursorY
 
-  const headerLine = (ecole || 'École non précisée').toUpperCase() + (divisionScolaire ? `  ·  ${divisionScolaire.toUpperCase()}` : '')
+  const headerLine = (ecole || t('École non précisée', lang)).toUpperCase() + (divisionScolaire ? `  ·  ${divisionScolaire.toUpperCase()}` : '')
   doc.font('bold').fontSize(9).fillColor(COLORS.inkSoft).text(headerLine, { width: contentWidth - logoSize - 12, characterSpacing: 0.5 })
+  const reportLine =
+    lang === 'en'
+      ? `Progress report — IEP · Generated on ${today}${generatedBy ? ' by ' + generatedBy : ''}`
+      : `Rapport de progrès — PEI · Généré le ${today}${generatedBy ? ' par ' + generatedBy : ''}`
   doc
     .font('regular')
     .fontSize(9)
     .fillColor(COLORS.inkSoft)
-    .text(`Rapport de progrès — PEI · Généré le ${today}${generatedBy ? ' par ' + generatedBy : ''}`, { width: contentWidth - logoSize - 12 })
+    .text(reportLine, { width: contentWidth - logoSize - 12 })
   doc.moveDown(0.5)
   ruleAt(doc, doc.y)
   doc.moveDown(0.9)
@@ -161,33 +188,31 @@ function renderStudent(doc, student, { ecole, divisionScolaire, generatedBy }) {
   const avgRate = student.weeklyRate.length
     ? Math.round(student.weeklyRate.reduce((sum, w) => sum + w.pct, 0) / student.weeklyRate.length)
     : 0
-  doc
-    .font('regular')
-    .fontSize(10)
-    .fillColor(COLORS.inkSoft)
-    .text(
-      `Taux moyen : ${avgRate}%    ·    Objectifs actifs : ${student.goals.length}    ·    Atteints aujourd'hui : ${doneCount}/${student.goals.length}`
-    )
+  const statsLine =
+    lang === 'en'
+      ? `Average rate: ${avgRate}%    ·    Active goals: ${student.goals.length}    ·    Achieved today: ${doneCount}/${student.goals.length}`
+      : `Taux moyen : ${avgRate}%    ·    Objectifs actifs : ${student.goals.length}    ·    Atteints aujourd'hui : ${doneCount}/${student.goals.length}`
+  doc.font('regular').fontSize(10).fillColor(COLORS.inkSoft).text(statsLine)
 
   if (student.forces || student.besoins) {
-    sectionTitle(doc, 'Forces et besoins')
+    sectionTitle(doc, t('Forces et besoins', lang))
     if (student.forces) {
-      doc.font('bold').fontSize(9).fillColor(COLORS.inkSoft).text('FORCES', { characterSpacing: 0.3 })
+      doc.font('bold').fontSize(9).fillColor(COLORS.inkSoft).text(t('FORCES', lang), { characterSpacing: 0.3 })
       doc.font('regular').fontSize(10.5).fillColor(COLORS.ink).text(student.forces, { lineGap: 3 })
       doc.moveDown(0.4)
     }
     if (student.besoins) {
-      doc.font('bold').fontSize(9).fillColor(COLORS.inkSoft).text('BESOINS', { characterSpacing: 0.3 })
+      doc.font('bold').fontSize(9).fillColor(COLORS.inkSoft).text(t('BESOINS', lang), { characterSpacing: 0.3 })
       doc.font('regular').fontSize(10.5).fillColor(COLORS.ink).text(student.besoins, { lineGap: 3 })
     }
   }
 
   if (student.adaptations && student.adaptations.length > 0) {
-    sectionTitle(doc, 'Adaptations')
+    sectionTitle(doc, t('Adaptations', lang))
     student.adaptations.forEach((a, i) => {
       if (i > 0) ruleAt(doc, doc.y)
       doc.moveDown(0.4)
-      const subtypeLabel = ADAPTATION_SUBTYPE_LABELS[a.subtype] || a.subtype
+      const subtypeLabel = t(ADAPTATION_SUBTYPE_LABELS[a.subtype] || a.subtype, lang)
       doc.font('bold').fontSize(8.5)
       const pillWidth = doc.widthOfString(subtypeLabel) + 14
       const lineY = doc.y
@@ -201,18 +226,19 @@ function renderStudent(doc, student, { ecole, divisionScolaire, generatedBy }) {
       })
       doc.y = Math.max(descBottom, lineY + 18)
       if (a.goalLabel) {
-        doc.font('regular').fontSize(8.5).fillColor(COLORS.inkSoft).text(`Liée à l'objectif : ${a.goalLabel}`)
+        const linked = lang === 'en' ? `${t('Liée à l\'objectif', lang)}: ${a.goalLabel}` : `Liée à l'objectif : ${a.goalLabel}`
+        doc.font('regular').fontSize(8.5).fillColor(COLORS.inkSoft).text(linked)
       }
       doc.moveDown(0.3)
     })
   }
 
   if (student.modifications && student.modifications.length > 0) {
-    sectionTitle(doc, 'Modifications')
+    sectionTitle(doc, t('Modifications', lang))
     student.modifications.forEach((m, i) => {
       if (i > 0) ruleAt(doc, doc.y)
       doc.moveDown(0.4)
-      const typeLabel = MODIFICATION_TYPE_LABELS[m.type] || m.type
+      const typeLabel = t(MODIFICATION_TYPE_LABELS[m.type] || m.type, lang)
       doc.font('bold').fontSize(8.5)
       const pillWidth = doc.widthOfString(typeLabel) + 14
       const lineY = doc.y
@@ -225,28 +251,35 @@ function renderStudent(doc, student, { ecole, divisionScolaire, generatedBy }) {
         fg: COLORS.category.fg,
       })
       doc.y = Math.max(descBottom, lineY + 18)
-      doc.font('regular').fontSize(8.5).fillColor(COLORS.inkSoft).text(`Matière : ${m.subject}`)
+      const subjectLine = lang === 'en' ? `${t('Matière', lang)}: ${m.subject}` : `Matière : ${m.subject}`
+      doc.font('regular').fontSize(8.5).fillColor(COLORS.inkSoft).text(subjectLine)
       doc.moveDown(0.3)
     })
   }
 
   if (student.transitionGoals && student.transitionGoals.length > 0) {
-    sectionTitle(doc, 'Plan de transition')
+    sectionTitle(doc, t('Plan de transition', lang))
     student.transitionGoals.forEach((g, i) => {
       if (i > 0) ruleAt(doc, doc.y)
       doc.moveDown(0.4)
       doc.font('bold').fontSize(10.5).fillColor(COLORS.ink).text(g.description)
 
       const metaParts = []
-      if (g.responsible) metaParts.push(`Responsable : ${g.responsible}`)
-      if (g.targetDate) metaParts.push(`Délai prévu : ${formatDateFr(g.targetDate)}`)
+      if (g.responsible) {
+        metaParts.push(lang === 'en' ? `${t('Responsable', lang)}: ${g.responsible}` : `Responsable : ${g.responsible}`)
+      }
+      if (g.targetDate) {
+        const dateLabel = formatDateLocalized(g.targetDate, lang)
+        metaParts.push(lang === 'en' ? `${t('Délai prévu', lang)}: ${dateLabel}` : `Délai prévu : ${dateLabel}`)
+      }
       if (metaParts.length > 0) {
         doc.moveDown(0.15)
         doc.font('regular').fontSize(8.5).fillColor(COLORS.inkSoft).text(metaParts.join('    ·    '))
       }
       if (g.communityResources) {
         doc.moveDown(0.1)
-        doc.font('regular').fontSize(8.5).fillColor(COLORS.inkSoft).text(`Ressources communautaires : ${g.communityResources}`)
+        const resLine = lang === 'en' ? `${t('Ressources communautaires', lang)}: ${g.communityResources}` : `Ressources communautaires : ${g.communityResources}`
+        doc.font('regular').fontSize(8.5).fillColor(COLORS.inkSoft).text(resLine)
       }
       if (g.steps && g.steps.length > 0) {
         doc.moveDown(0.25)
@@ -260,16 +293,16 @@ function renderStudent(doc, student, { ecole, divisionScolaire, generatedBy }) {
     })
   }
 
-  sectionTitle(doc, 'Résumé')
-  doc.font('regular').fontSize(10.5).fillColor(COLORS.ink).text(reportSummaryText(student), { lineGap: 3 })
+  sectionTitle(doc, t('Résumé', lang))
+  doc.font('regular').fontSize(10.5).fillColor(COLORS.ink).text(reportSummaryText(student, lang), { lineGap: 3 })
 
-  sectionTitle(doc, 'Objectifs suivis')
+  sectionTitle(doc, t('Objectifs suivis', lang))
   student.goals.forEach((goal, i) => {
     if (i > 0) ruleAt(doc, doc.y)
     doc.moveDown(0.5)
 
     const status = COLORS.status[goal.status] || COLORS.status.non_atteint
-    const statusLabel = GOAL_STATUS_LABELS[goal.status] || goal.status
+    const statusLabel = t(GOAL_STATUS_LABELS[goal.status] || goal.status, lang)
     doc.font('bold').fontSize(8.5)
     const pillWidth = doc.widthOfString(statusLabel) + 14
     const lineY = doc.y
@@ -287,14 +320,14 @@ function renderStudent(doc, student, { ecole, divisionScolaire, generatedBy }) {
 
     if (goal.strategies && goal.strategies.length > 0) {
       doc.moveDown(0.3)
-      const endY = drawStrategyChips(doc, goal.strategies, doc.page.margins.left, doc.y, contentWidth)
+      const endY = drawStrategyChips(doc, goal.strategies, doc.page.margins.left, doc.y, contentWidth, lang)
       doc.y = endY
     }
     doc.moveDown(0.4)
   })
 
   if (student.notes.length > 0) {
-    sectionTitle(doc, "Notes de l'enseignant")
+    sectionTitle(doc, t("Notes de l'enseignant", lang))
     student.notes.forEach((note) => {
       doc
         .font('bold')
@@ -314,7 +347,10 @@ function renderStudent(doc, student, { ecole, divisionScolaire, generatedBy }) {
   }
 
   doc.moveDown(0.6)
-  const alertText = `Prochaine révision du PEI ${reviewDaysLabel(student.reviewInDays)} — à inscrire à l'ordre du jour de la rencontre parents-école.`
+  const alertText =
+    lang === 'en'
+      ? `Next IEP review ${reviewDaysLabel(student.reviewInDays, lang)} — add to the agenda of the parent-school meeting.`
+      : `Prochaine révision du PEI ${reviewDaysLabel(student.reviewInDays, lang)} — à inscrire à l'ordre du jour de la rencontre parents-école.`
   const alertColors = student.reviewInDays <= 7 ? COLORS.alertUrgent : COLORS.alertWarning
   const alertY = doc.y
   doc.font('regular').fontSize(9.5)

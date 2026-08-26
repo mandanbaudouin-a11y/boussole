@@ -34,11 +34,12 @@ export const api = {
   saveAiApiKey: (provider, apiKey) =>
     request(`/ai/providers/${provider}/key`, { method: 'POST', body: JSON.stringify({ apiKey }) }),
   clearAiApiKey: (provider) => request(`/ai/providers/${provider}/key`, { method: 'DELETE' }),
-  generateAiReport: (studentId) => request(`/students/${studentId}/ai-report`, { method: 'POST' }),
+  generateAiReport: (studentId, lang = 'fr') =>
+    request(`/students/${studentId}/ai-report`, { method: 'POST', body: JSON.stringify({ lang }) }),
   saveNarrativeReport: (studentId, text) =>
     request(`/students/${studentId}/narrative-report`, { method: 'PATCH', body: JSON.stringify({ text }) }),
-  suggestFieldText: (studentId, field, draft) =>
-    request(`/students/${studentId}/suggest-text`, { method: 'POST', body: JSON.stringify({ field, draft }) }),
+  suggestFieldText: (studentId, field, draft, lang = 'fr') =>
+    request(`/students/${studentId}/suggest-text`, { method: 'POST', body: JSON.stringify({ field, draft, lang }) }),
 
   getStrategiesLibrary: () => request('/strategies-library'),
   addStrategy: (goalId, label, category) =>
@@ -87,8 +88,8 @@ export const api = {
     return { blob, filename }
   },
 
-  downloadStudentReportPdf: async (studentId) => {
-    const res = await fetch(`/api/students/${studentId}/report.pdf`)
+  downloadStudentReportPdf: async (studentId, lang = 'fr') => {
+    const res = await fetch(`/api/students/${studentId}/report.pdf?lang=${lang}`)
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))
       const error = new Error(body.error || `Erreur ${res.status}`)
@@ -102,8 +103,8 @@ export const api = {
     return { blob, filename }
   },
 
-  downloadCombinedReportPdf: async () => {
-    const res = await fetch('/api/reports/pdf')
+  downloadCombinedReportPdf: async (lang = 'fr') => {
+    const res = await fetch(`/api/reports/pdf?lang=${lang}`)
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))
       const error = new Error(body.error || `Erreur ${res.status}`)

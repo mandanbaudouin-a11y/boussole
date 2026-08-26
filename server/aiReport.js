@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { GOAL_STATUS_LABELS, STRATEGY_CATEGORY_LABELS } from './db.js'
 import { getActiveProvider, getApiKey, AI_PROVIDER_LABELS } from './aiConfig.js'
+import { t } from './i18nEn.js'
 
 const CLAUDE_MODEL = 'claude-sonnet-5'
 const MISTRAL_MODEL = 'mistral-large-latest'
@@ -29,7 +30,70 @@ aucun détail qui n'y figure pas
 - Réponds uniquement avec le texte narratif final, prêt à être relu et modifié \
 par l'enseignant·e — sans préambule, sans titre, sans notes entre crochets`
 
-function buildUserPrompt(student) {
+const SYSTEM_PROMPT_EN = `You are a resource teacher helping school staff write the "Summary" section \
+of a progress report for an Individual Education Plan (IEP).
+
+Expected tone: professional, positive, progress-oriented, respectful of the student and their \
+family. Never alarmist, never condescending.
+
+Expected structure, in flowing, well-connected paragraphs (no bullet lists, no section headings):
+1. Brief context (period covered, general overview)
+2. Progress made on each active goal
+3. Challenges encountered, named tactfully
+4. Strategies used and their observed effect
+5. Recommendations for the next period
+
+Strict constraints:
+- Correct, complete English
+- Educational terminology appropriate to the context
+- Rely only on the data provided; do not invent any fact, date, or detail not present in it
+- Aim for roughly 200 to 350 words
+- Reply only with the final narrative text, ready to be reviewed and edited by the teacher — no \
+preamble, no title, no bracketed notes`
+
+function buildUserPrompt(student, lang = 'fr') {
+  const status = (s) => t(GOAL_STATUS_LABELS[s] || s, lang)
+  const category = (c) => t(STRATEGY_CATEGORY_LABELS[c] || c, lang)
+
+  if (lang === 'en') {
+    const lines = []
+    lines.push(`Student: ${student.name} — ${student.grade}`)
+    if (student.forces) lines.push(`Strengths: ${student.forces}`)
+    if (student.besoins) lines.push(`Needs: ${student.besoins}`)
+    lines.push(
+      student.reviewInDays < 0
+        ? `IEP review overdue by ${Math.abs(student.reviewInDays)} day${Math.abs(student.reviewInDays) > 1 ? 's' : ''}.`
+        : `IEP review scheduled in ${student.reviewInDays} day${student.reviewInDays > 1 ? 's' : ''}.`
+    )
+    lines.push('')
+    lines.push('IEP goals:')
+    student.goals.forEach((g, i) => {
+      lines.push(`${i + 1}. ${g.label} — current status: ${status(g.status)}`)
+      if (g.strategies && g.strategies.length > 0) {
+        const strategyList = g.strategies.map((s) => (s.category ? `${s.label} (${category(s.category)})` : s.label)).join('; ')
+        lines.push(`   Strategies used: ${strategyList}`)
+      }
+      if (g.statusHistory && g.statusHistory.length > 1) {
+        const progression = [...g.statusHistory].reverse().map((h) => status(h.status)).join(' -> ')
+        lines.push(`   Status progression: ${progression}`)
+      }
+    })
+
+    if (student.weeklyRate && student.weeklyRate.length > 0) {
+      lines.push('')
+      lines.push('Weekly success rate (all strategies combined):')
+      student.weeklyRate.forEach((w) => lines.push(`- ${w.week}: ${w.pct}%`))
+    }
+
+    if (student.notes && student.notes.length > 0) {
+      lines.push('')
+      lines.push('Teacher / EA tracking notes (most recent first):')
+      student.notes.forEach((n) => lines.push(`- ${n.date}: ${n.text}`))
+    }
+
+    return lines.join('\n')
+  }
+
   const lines = []
   lines.push(`Élève : ${student.name} — ${student.grade}`)
   if (student.forces) lines.push(`Forces : ${student.forces}`)
@@ -180,11 +244,12 @@ async function callAI(systemPrompt, userPrompt, maxTokens) {
   return callClaude(systemPrompt, userPrompt, maxTokens)
 }
 
-export async function generateNarrativeReport(student) {
-  return callAI(SYSTEM_PROMPT, buildUserPrompt(student), 1000)
+export async function generateNarrativeReport(student, lang = 'fr') {
+  return callAI(lang === 'en' ? SYSTEM_PROMPT_EN : SYSTEM_PROMPT, buildUserPrompt(student, lang), 1000)
 }
 
 const FIELD_LABELS = { forces: 'forces', besoins: 'besoins' }
+const FIELD_LABELS_EN = { forces: 'strengths', besoins: 'needs' }
 
 const SUGGEST_SYSTEM_PROMPT = `Tu aides le personnel enseignant du Manitoba francophone à formuler la \
 section « forces » ou « besoins » du profil d'un élève dans un Plan d'Enseignement Individualisé (PEI).
@@ -200,8 +265,30 @@ Contraintes :
 complètes à partir de ces seuls mots-clés, sans ajouter d'information non fournie
 - Réponds uniquement avec le texte reformulé, sans préambule ni notes entre crochets`
 
-export async function suggestFieldText(student, field, draft) {
+const SUGGEST_SYSTEM_PROMPT_EN = `You help school staff word the "strengths" or "needs" section of a \
+student's profile in an Individual Education Plan (IEP).
+
+Task: rephrase and improve the text provided by the teacher — make it clearer, more professional and \
+better structured — without changing its meaning, without inventing new facts or details not present \
+in it, and without needlessly lengthening it.
+
+Constraints:
+- Correct, complete English
+- Professional, factual tone, respectful of the student
+- If the provided text is empty or very brief (a few keywords), expand it into complete sentences \
+based only on those keywords, without adding unprovided information
+- Reply only with the rephrased text, no preamble, no bracketed notes`
+
+export async function suggestFieldText(student, field, draft, lang = 'fr') {
   if (!FIELD_LABELS[field]) throw new Error('Champ invalide.')
+
+  if (lang === 'en') {
+    const lines = [`Student: ${student.name} — ${student.grade}`]
+    lines.push(`Field to rephrase: ${FIELD_LABELS_EN[field]}`)
+    lines.push('')
+    lines.push(draft && draft.trim() ? `Teacher's current text:\n${draft.trim()}` : 'Current text: (empty)')
+    return callAI(SUGGEST_SYSTEM_PROMPT_EN, lines.join('\n'), 500)
+  }
 
   const lines = [`Élève : ${student.name} — ${student.grade}`]
   lines.push(`Champ à reformuler : ${FIELD_LABELS[field]}`)

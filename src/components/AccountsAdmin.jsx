@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react'
 import { auth } from '../auth'
 import { api } from '../api'
 import { TEACHER_TITLES, TEACHER_TITLE_LABELS } from '../teacherTitles'
+import { useLanguage } from '../i18n/LanguageContext'
 
 const ROLE_LABELS = { enseignant: 'Enseignant', ea: 'EA' }
 
 function NewEaForm({ onCreated }) {
+  const { t } = useLanguage()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState(null)
@@ -15,11 +17,11 @@ function NewEaForm({ onCreated }) {
     e.preventDefault()
     setError(null)
     if (username.trim().length < 3) {
-      setError("Le nom d'utilisateur doit contenir au moins 3 caractères.")
+      setError(t("Le nom d'utilisateur doit contenir au moins 3 caractères."))
       return
     }
     if (password.length < 8) {
-      setError('Le mot de passe doit contenir au moins 8 caractères.')
+      setError(t('Le mot de passe doit contenir au moins 8 caractères.'))
       return
     }
     setSaving(true)
@@ -38,27 +40,27 @@ function NewEaForm({ onCreated }) {
   return (
     <form className="card new-student-form" onSubmit={submit}>
       <div className="card-header">
-        <p className="student-name" style={{ cursor: 'default' }}>Créer un compte EA</p>
+        <p className="student-name" style={{ cursor: 'default' }}>{t('Créer un compte EA')}</p>
       </div>
       {error && <div className="alert alert-urgent" style={{ marginBottom: 14 }}>{error}</div>}
       <div className="form-row">
         <input
           className="text-input"
-          placeholder="Nom d'utilisateur"
+          placeholder={t("Nom d'utilisateur")}
           value={username}
           onChange={(e) => setUsername(e.target.value)}
         />
         <input
           className="text-input"
           type="password"
-          placeholder="Mot de passe (8 caractères min.)"
+          placeholder={t('Mot de passe (8 caractères min.)')}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
       </div>
       <div className="form-row" style={{ marginTop: 10 }}>
         <button type="submit" className="btn btn-primary" disabled={saving}>
-          {saving ? 'Création...' : 'Créer le compte'}
+          {saving ? t('Création...') : t('Créer le compte')}
         </button>
       </div>
     </form>
@@ -71,6 +73,7 @@ const KEY_PLACEHOLDERS = {
 }
 
 function ProviderKeyRow({ provider, label, configured, isActive, activating, onSaved, onRemoved, onActivate }) {
+  const { t } = useLanguage()
   const [apiKey, setApiKey] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -92,7 +95,7 @@ function ProviderKeyRow({ provider, label, configured, isActive, activating, onS
   }
 
   const remove = async () => {
-    if (!confirm(`Retirer la clé API ${label} ? La génération par ce fournisseur sera désactivée.`)) return
+    if (!confirm(t('Retirer la clé API {label} ? La génération par ce fournisseur sera désactivée.', { label }))) return
     setSaving(true)
     setError(null)
     try {
@@ -110,13 +113,13 @@ function ProviderKeyRow({ provider, label, configured, isActive, activating, onS
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
         <p style={{ margin: 0, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8 }}>
           {label}
-          {isActive && <span className="status-badge status-atteint">Actif</span>}
+          {isActive && <span className="status-badge status-atteint">{t('Actif')}</span>}
         </p>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span className="page-date" style={{ margin: 0 }}>{configured ? 'clé configurée' : 'aucune clé'}</span>
+          <span className="page-date" style={{ margin: 0 }}>{configured ? t('clé configurée') : t('aucune clé')}</span>
           {!isActive && configured && (
             <button className="btn" onClick={() => onActivate(provider)} disabled={activating}>
-              {activating ? 'Activation...' : 'Rendre actif'}
+              {activating ? t('Activation...') : t('Rendre actif')}
             </button>
           )}
         </div>
@@ -128,16 +131,16 @@ function ProviderKeyRow({ provider, label, configured, isActive, activating, onS
         <input
           className="text-input"
           type="password"
-          placeholder={KEY_PLACEHOLDERS[provider] || 'Clé API...'}
+          placeholder={KEY_PLACEHOLDERS[provider] || t('Clé API...')}
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
         />
         <button type="submit" className="btn btn-primary" disabled={saving || !apiKey.trim()}>
-          {saving ? 'Enregistrement...' : 'Enregistrer'}
+          {saving ? t('Enregistrement...') : t('Enregistrer')}
         </button>
         {configured && (
           <button type="button" className="btn" onClick={remove} disabled={saving}>
-            Retirer
+            {t('Retirer')}
           </button>
         )}
       </form>
@@ -146,6 +149,7 @@ function ProviderKeyRow({ provider, label, configured, isActive, activating, onS
 }
 
 function AiSettingsPanel() {
+  const { t } = useLanguage()
   const [status, setStatus] = useState(null)
   const [error, setError] = useState(null)
   const [activatingProvider, setActivatingProvider] = useState(null)
@@ -172,18 +176,16 @@ function AiSettingsPanel() {
   return (
     <div className="card">
       <div className="card-header">
-        <p className="student-name" style={{ fontSize: 15, cursor: 'default' }}>Paramètres IA</p>
+        <p className="student-name" style={{ fontSize: 15, cursor: 'default' }}>{t('Paramètres IA')}</p>
       </div>
 
       <p className="backup-hint">
-        Clé API utilisée pour générer un brouillon de résumé de rapport ou reformuler un texte. Chaque
-        fournisseur garde sa propre clé, stockée localement sur cet ordinateur — jamais dans les
-        sauvegardes exportées. Un seul fournisseur est actif à la fois.
+        {t('Clé API utilisée pour générer un brouillon de résumé de rapport ou reformuler un texte. Chaque fournisseur garde sa propre clé, stockée localement sur cet ordinateur — jamais dans les sauvegardes exportées. Un seul fournisseur est actif à la fois.')}
       </p>
 
       {error && <div className="alert alert-urgent" style={{ marginBottom: 12 }}>{error}</div>}
 
-      {!status && <p className="page-date" style={{ margin: 0 }}>Chargement…</p>}
+      {!status && <p className="page-date" style={{ margin: 0 }}>{t('Chargement…')}</p>}
 
       {status &&
         Object.entries(status.providers).map(([provider, info]) => (
@@ -204,6 +206,7 @@ function AiSettingsPanel() {
 }
 
 function TeacherProfilePanel() {
+  const { t } = useLanguage()
   const [profile, setProfile] = useState(null)
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({})
@@ -232,11 +235,11 @@ function TeacherProfilePanel() {
   const save = async (e) => {
     e.preventDefault()
     if (!form.nomComplet.trim()) {
-      setError('Le nom complet est requis.')
+      setError(t('Le nom complet est requis.'))
       return
     }
     if (!form.courriel.trim() || !form.courriel.includes('@')) {
-      setError('Un courriel valide est requis.')
+      setError(t('Un courriel valide est requis.'))
       return
     }
     setSaving(true)
@@ -255,37 +258,37 @@ function TeacherProfilePanel() {
   return (
     <div className="card">
       <div className="card-header">
-        <p className="student-name" style={{ fontSize: 15, cursor: 'default' }}>Mon profil</p>
+        <p className="student-name" style={{ fontSize: 15, cursor: 'default' }}>{t('Mon profil')}</p>
       </div>
 
       {error && <div className="alert alert-urgent" style={{ marginBottom: 12 }}>{error}</div>}
-      {!profile && <p className="page-date" style={{ margin: 0 }}>Chargement…</p>}
+      {!profile && <p className="page-date" style={{ margin: 0 }}>{t('Chargement…')}</p>}
 
       {profile && !editing && (
         <div>
           <div className="stat-grid" style={{ marginBottom: 16 }}>
             <div className="stat-card">
-              <p className="stat-label">Nom complet</p>
-              <p className="stat-value" style={{ fontSize: 15 }}>{profile.nomComplet || '—'}</p>
+              <p className="stat-label">{t('Nom complet')}</p>
+              <p className="stat-value" style={{ fontSize: 15 }}>{profile.nomComplet || t('—')}</p>
             </div>
             <div className="stat-card">
-              <p className="stat-label">Courriel</p>
-              <p className="stat-value" style={{ fontSize: 15 }}>{profile.courriel || '—'}</p>
+              <p className="stat-label">{t('Courriel')}</p>
+              <p className="stat-value" style={{ fontSize: 15 }}>{profile.courriel || t('—')}</p>
             </div>
             <div className="stat-card">
-              <p className="stat-label">Titre</p>
+              <p className="stat-label">{t('Titre')}</p>
               <p className="stat-value" style={{ fontSize: 15 }}>
-                {profile.titre ? TEACHER_TITLE_LABELS[profile.titre] : '—'}
+                {profile.titre ? t(TEACHER_TITLE_LABELS[profile.titre]) : t('—')}
               </p>
             </div>
           </div>
-          <p className="page-date" style={{ margin: '0 0 4px' }}>École</p>
-          <p style={{ margin: '0 0 12px' }}>{profile.ecole || '—'}</p>
-          <p className="page-date" style={{ margin: '0 0 4px' }}>Division scolaire</p>
-          <p style={{ margin: '0 0 12px' }}>{profile.divisionScolaire || '—'}</p>
-          <p className="page-date" style={{ margin: '0 0 4px' }}>Année scolaire</p>
-          <p style={{ margin: '0 0 12px' }}>{profile.anneeScolaire || '—'}</p>
-          <button className="btn" onClick={startEditing}>Modifier</button>
+          <p className="page-date" style={{ margin: '0 0 4px' }}>{t('École')}</p>
+          <p style={{ margin: '0 0 12px' }}>{profile.ecole || t('—')}</p>
+          <p className="page-date" style={{ margin: '0 0 4px' }}>{t('Division scolaire')}</p>
+          <p style={{ margin: '0 0 12px' }}>{profile.divisionScolaire || t('—')}</p>
+          <p className="page-date" style={{ margin: '0 0 4px' }}>{t('Année scolaire')}</p>
+          <p style={{ margin: '0 0 12px' }}>{profile.anneeScolaire || t('—')}</p>
+          <button className="btn" onClick={startEditing}>{t('Modifier')}</button>
         </div>
       )}
 
@@ -294,14 +297,14 @@ function TeacherProfilePanel() {
           <div className="form-row" style={{ flexWrap: 'wrap' }}>
             <input
               className="text-input"
-              placeholder="Nom complet"
+              placeholder={t('Nom complet')}
               value={form.nomComplet}
               onChange={(e) => setForm({ ...form, nomComplet: e.target.value })}
             />
             <input
               className="text-input"
               type="email"
-              placeholder="Courriel"
+              placeholder={t('Courriel')}
               value={form.courriel}
               onChange={(e) => setForm({ ...form, courriel: e.target.value })}
             />
@@ -309,13 +312,13 @@ function TeacherProfilePanel() {
           <div className="form-row" style={{ flexWrap: 'wrap', marginTop: 10 }}>
             <input
               className="text-input"
-              placeholder="École"
+              placeholder={t('École')}
               value={form.ecole}
               onChange={(e) => setForm({ ...form, ecole: e.target.value })}
             />
             <input
               className="text-input"
-              placeholder="Division scolaire"
+              placeholder={t('Division scolaire')}
               value={form.divisionScolaire}
               onChange={(e) => setForm({ ...form, divisionScolaire: e.target.value })}
             />
@@ -323,7 +326,7 @@ function TeacherProfilePanel() {
           <div className="form-row" style={{ flexWrap: 'wrap', marginTop: 10 }}>
             <input
               className="text-input"
-              placeholder="Année scolaire"
+              placeholder={t('Année scolaire')}
               value={form.anneeScolaire}
               onChange={(e) => setForm({ ...form, anneeScolaire: e.target.value })}
             />
@@ -332,18 +335,18 @@ function TeacherProfilePanel() {
               value={form.titre}
               onChange={(e) => setForm({ ...form, titre: e.target.value })}
             >
-              <option value="">Titre — non précisé</option>
-              {TEACHER_TITLES.map((t) => (
-                <option key={t.value} value={t.value}>{t.label}</option>
+              <option value="">{t('Titre — non précisé')}</option>
+              {TEACHER_TITLES.map((tt) => (
+                <option key={tt.value} value={tt.value}>{t(tt.label)}</option>
               ))}
             </select>
           </div>
           <div className="form-row" style={{ marginTop: 12 }}>
             <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? 'Enregistrement...' : 'Enregistrer'}
+              {saving ? t('Enregistrement...') : t('Enregistrer')}
             </button>
             <button type="button" className="btn" onClick={() => setEditing(false)} disabled={saving}>
-              Annuler
+              {t('Annuler')}
             </button>
           </div>
         </form>
@@ -353,6 +356,7 @@ function TeacherProfilePanel() {
 }
 
 export default function AccountsAdmin() {
+  const { t } = useLanguage()
   const [accounts, setAccounts] = useState(null)
   const [error, setError] = useState(null)
 
@@ -367,27 +371,27 @@ export default function AccountsAdmin() {
 
   return (
     <div>
-      <p className="page-date">Gestion des accès</p>
-      <h1 className="page-title">Comptes</h1>
+      <p className="page-date">{t('Gestion des accès')}</p>
+      <h1 className="page-title">{t('Comptes')}</h1>
 
       {error && <div className="alert alert-urgent" style={{ marginBottom: 16 }}>{error}</div>}
 
       <div className="card">
         <div className="card-header">
-          <p className="student-name" style={{ fontSize: 15, cursor: 'default' }}>Comptes existants</p>
+          <p className="student-name" style={{ fontSize: 15, cursor: 'default' }}>{t('Comptes existants')}</p>
         </div>
-        {!accounts && <p className="page-date" style={{ margin: 0 }}>Chargement&hellip;</p>}
+        {!accounts && <p className="page-date" style={{ margin: 0 }}>{t('Chargement…')}</p>}
         {accounts?.map((account) => (
           <div className="goal-row" key={account.username}>
             <span className="goal-label">
               {account.nomComplet ? `${account.nomComplet} (${account.username})` : account.username}
               {account.titre && (
                 <span className="page-date" style={{ display: 'block', margin: 0 }}>
-                  {TEACHER_TITLE_LABELS[account.titre] || account.titre}
+                  {t(TEACHER_TITLE_LABELS[account.titre]) || account.titre}
                 </span>
               )}
             </span>
-            <span className="tag-mark">{ROLE_LABELS[account.role] || account.role}</span>
+            <span className="tag-mark">{t(ROLE_LABELS[account.role]) || account.role}</span>
           </div>
         ))}
       </div>
