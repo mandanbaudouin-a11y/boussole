@@ -1,0 +1,12 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img">
+  <title>Repère — icône</title>
+  <desc>Icône carrée du logo Repère : marqueur en forme de goutte teal avec anneau menthe, sur fond blanc arrondi.</desc>
+
+  <rect x="0" y="0" width="512" height="512" rx="96" fill="#F7FAFA"></rect>
+
+  <g transform="translate(256,256)">
+    <path d="M0,-162 C90,-162 146,-96 146,-18 C146,90 0,174 0,174 C0,174 -146,90 -146,-18 C-146,-96 -90,-162 0,-162 Z" fill="#028090"></path>
+    <circle cx="0" cy="-18" r="62" fill="#F7FAFA"></circle>
+    <circle cx="0" cy="-18" r="34" fill="#02C39A"></circle>
+  </g>
+</svg>

@@ -76,8 +76,8 @@ export default function AuthScreen({ mode, onSubmit, message }) {
         <div className="auth-panel-brand">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
             <div className="brand-row" style={{ marginBottom: 0 }}>
-              <img src="/logo-boussole-icon.svg" alt="" className="brand-icon" />
-              <span className="brand" style={{ color: '#fff', fontSize: 24 }}>Boussole</span>
+              <img src="/logo-repere-icon.svg" alt="" className="brand-icon" />
+              <span className="brand" style={{ color: '#fff', fontSize: 24 }}>Repère</span>
             </div>
             <LanguageToggle className="on-dark" />
           </div>

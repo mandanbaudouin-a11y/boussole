@@ -1,7 +1,7 @@
 import { createContext, useContext, useState } from 'react'
 import { en } from './en'
 
-const STORAGE_KEY = 'boussole-lang'
+const STORAGE_KEY = 'repere-lang'
 
 const LanguageContext = createContext({
   lang: 'fr',

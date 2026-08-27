@@ -1140,7 +1140,7 @@ export function start(port = DEFAULT_PORT) {
   return new Promise((resolve, reject) => {
     const server = app
       .listen(port, () => {
-        console.log(`API Boussole sur http://localhost:${port}`)
+        console.log(`API Repère sur http://localhost:${port}`)
         resolve(server)
       })
       .on('error', reject)

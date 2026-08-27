@@ -1,5 +1,5 @@
 {
-  "name": "boussole",
+  "name": "repere",
   "private": true,
   "version": "0.3.0",
   "type": "module",
@@ -41,8 +41,8 @@
     "@noble/hashes": "1.8.0"
   },
   "build": {
-    "appId": "com.boussole.app",
-    "productName": "Boussole",
+    "appId": "com.repere.app",
+    "productName": "Repère",
     "npmRebuild": false,
     "publish": {
       "provider": "github",

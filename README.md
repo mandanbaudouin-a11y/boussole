@@ -1,4 +1,4 @@
-# Boussole — prototype
+# Repère — prototype
 
 Prototype MVP pour la gestion des PEI (plans d'enseignement individualises), appuye sur une base de donnees SQLite locale (`data/pei-central.db`).
 
@@ -80,10 +80,10 @@ vers le vrai dossier de donnees avant d'executer la commande :
 
 ```bash
 # macOS
-PEI_CENTRAL_DATA_DIR=~/Library/Application\ Support/boussole/data node scripts/reset-password.js --user prof --password nouveauMotDePasse
+PEI_CENTRAL_DATA_DIR=~/Library/Application\ Support/repere/data node scripts/reset-password.js --user prof --password nouveauMotDePasse
 
 # Windows (invite de commandes)
-set PEI_CENTRAL_DATA_DIR=%APPDATA%\boussole\data
+set PEI_CENTRAL_DATA_DIR=%APPDATA%\repere\data
 node scripts\reset-password.js --user prof --password nouveauMotDePasse
 ```
 
@@ -114,12 +114,12 @@ automatiquement a l'interieur du processus Electron (`electron/main.js`), qui ou
 
 **Emplacement des donnees dans l'app packagee** (different du dossier `data/` du projet, qui ne sert qu'en
 mode developpement) :
-- macOS : `~/Library/Application Support/boussole/data/`
-- Windows : `%APPDATA%\boussole\data\`
+- macOS : `~/Library/Application Support/repere/data/`
+- Windows : `%APPDATA%\repere\data\`
 
-L'app s'appelait auparavant "PEI Central" (dossier `pei-central`). Au premier lancement sous le nouveau
-nom, `electron/main.js` migre automatiquement les donnees de l'ancien dossier vers le nouveau si ce
-dernier n'existe pas encore — voir `migrateLegacyDataDir()`.
+L'app s'est appelee auparavant "PEI Central" (dossier `pei-central`) puis "Boussole" (dossier `boussole`).
+Au premier lancement sous le nouveau nom, `electron/main.js` migre automatiquement les donnees du premier
+ancien dossier trouve vers le nouveau si ce dernier n'existe pas encore — voir `migrateLegacyDataDir()`.
 
 ### Generer les installateurs
 
@@ -168,11 +168,11 @@ Les fichiers generes atterrissent dans `release/` (ignore par git) :
 
 | Fichier | Plateforme | Description |
 |---|---|---|
-| `release/Boussole-0.1.0.dmg` | macOS | Installateur — glisser l'app dans "Applications" |
-| `release/Boussole-0.1.0-mac.zip` | macOS | Meme app, en zip (alternative au dmg) |
-| `release/mac/Boussole.app` | macOS | L'app non compressee, pour test rapide |
-| `release/Boussole Setup 0.1.0.exe` | Windows | Installateur — double-clic, choix du dossier d'installation |
-| `release/win-unpacked/Boussole.exe` | Windows | L'app non compressee, pour test rapide |
+| `release/Repère-0.1.0.dmg` | macOS | Installateur — glisser l'app dans "Applications" |
+| `release/Repère-0.1.0-mac.zip` | macOS | Meme app, en zip (alternative au dmg) |
+| `release/mac/Repère.app` | macOS | L'app non compressee, pour test rapide |
+| `release/Repère Setup 0.1.0.exe` | Windows | Installateur — double-clic, choix du dossier d'installation |
+| `release/win-unpacked/Repère.exe` | Windows | L'app non compressee, pour test rapide |
 
 Les fichiers `.blockmap` a cote des installateurs servent aux mises a jour differentielles automatiques
 (non utilisees ici) — ils peuvent etre ignores ou supprimes sans consequence.

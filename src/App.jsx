@@ -350,8 +350,8 @@ export default function App() {
       <aside className="sidebar">
         <div className="brand-row" style={{ justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <img src="/logo-boussole-icon.svg" alt="" className="brand-icon" />
-            <p className="brand">Boussole</p>
+            <img src="/logo-repere-icon.svg" alt="" className="brand-icon" />
+            <p className="brand">Repère</p>
           </div>
         </div>
         <p className="brand-sub">{t('École Rivière-Rouge · Prototype')}</p>

@@ -1059,9 +1059,9 @@ function RapportTab({ student, canEdit, onSaveNarrativeReport }) {
       <div className="report-sheet">
         <div className="report-header">
           <div className="brand-row" style={{ marginBottom: 0 }}>
-            <img src="/logo-boussole-icon.svg" alt="" className="brand-icon" style={{ width: 30, height: 30 }} />
+            <img src="/logo-repere-icon.svg" alt="" className="brand-icon" style={{ width: 30, height: 30 }} />
             <div>
-              <p className="brand" style={{ fontSize: 18, lineHeight: 1.1 }}>Boussole</p>
+              <p className="brand" style={{ fontSize: 18, lineHeight: 1.1 }}>Repère</p>
               <p className="report-meta" style={{ margin: 0 }}>{t("Plan d'enseignement individualisé")}</p>
             </div>
           </div>

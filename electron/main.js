@@ -8,25 +8,31 @@ const require = createRequire(import.meta.url)
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const PORT = 3001
-const LEGACY_APP_NAME = 'pei-central'
+// Ordre du plus recent au plus ancien nom npm utilise par l'app (determine le
+// dossier de donnees userData d'Electron a chaque rebranding).
+const LEGACY_APP_NAMES = ['boussole', 'pei-central']
 const RELEASES_URL = 'https://github.com/mandanbaudouin-a11y/boussole/releases/latest'
 
 console.log('[main] script loaded, pid', process.pid)
 
 let mainWindow
 
-// L'app s'appelait "pei-central" avant le rebranding "Boussole" (le nom npm
-// determine le dossier de donnees userData d'Electron). Migration a usage
-// unique : si le nouveau dossier de donnees n'existe pas encore mais
-// l'ancien si, on copie son contenu avant le tout premier demarrage sous le
-// nouveau nom, pour ne pas perdre l'acces aux donnees deja saisies.
+// L'app s'est appelee "pei-central" puis "Boussole" avant le rebranding
+// "Repère" (le nom npm determine le dossier de donnees userData d'Electron).
+// Migration a usage unique : si le nouveau dossier de donnees n'existe pas
+// encore, on cherche le premier nom precedent dont le dossier existe et on
+// copie son contenu avant le tout premier demarrage sous le nouveau nom,
+// pour ne pas perdre l'acces aux donnees deja saisies.
 function migrateLegacyDataDir(newDataDir) {
   if (fs.existsSync(newDataDir)) return
-  const legacyDataDir = path.join(path.dirname(app.getPath('userData')), LEGACY_APP_NAME, 'data')
-  if (!fs.existsSync(legacyDataDir)) return
-  console.log('[main] migration des donnees depuis', legacyDataDir, 'vers', newDataDir)
-  fs.mkdirSync(path.dirname(newDataDir), { recursive: true })
-  fs.cpSync(legacyDataDir, newDataDir, { recursive: true })
+  for (const legacyName of LEGACY_APP_NAMES) {
+    const legacyDataDir = path.join(path.dirname(app.getPath('userData')), legacyName, 'data')
+    if (!fs.existsSync(legacyDataDir)) continue
+    console.log('[main] migration des donnees depuis', legacyDataDir, 'vers', newDataDir)
+    fs.mkdirSync(path.dirname(newDataDir), { recursive: true })
+    fs.cpSync(legacyDataDir, newDataDir, { recursive: true })
+    return
+  }
 }
 
 // Mise a jour automatique via GitHub Releases (voir build.publish dans
@@ -58,7 +64,7 @@ function setupAutoUpdate() {
         .showMessageBox(mainWindow, {
           type: 'info',
           title: 'Mise a jour disponible',
-          message: `Boussole ${info.version} est disponible (version actuelle : ${app.getVersion()}).`,
+          message: `Repère ${info.version} est disponible (version actuelle : ${app.getVersion()}).`,
           detail:
             "La mise à jour automatique n'est pas encore activée sur Mac. Téléchargez et installez la nouvelle version manuellement.",
           buttons: ['Ouvrir la page de téléchargement', 'Plus tard'],
@@ -79,7 +85,7 @@ function setupAutoUpdate() {
       .showMessageBox(mainWindow, {
         type: 'info',
         title: 'Mise a jour prete',
-        message: `Boussole ${info.version} est prête à être installée.`,
+        message: `Repère ${info.version} est prête à être installée.`,
         detail: "L'application va redémarrer pour terminer l'installation.",
         buttons: ['Redémarrer maintenant', 'Plus tard'],
         defaultId: 0,
@@ -143,7 +149,7 @@ if (!gotLock) {
       } catch (err) {
         console.error('[main] server failed to start', err)
         dialog.showErrorBox(
-          'Boussole — erreur de demarrage',
+          'Repère — erreur de démarrage',
           `Le serveur local n'a pas pu demarrer sur le port ${PORT}.\n\n${err.stack || err.message}`
         )
         app.quit()
@@ -174,7 +180,7 @@ function createWindow() {
     height: 840,
     minWidth: 960,
     minHeight: 640,
-    title: 'Boussole',
+    title: 'Repère',
     backgroundColor: '#EEF1EC',
     webPreferences: {
       nodeIntegration: false,
