@@ -170,15 +170,25 @@ Les fichiers generes atterrissent dans `release/` (ignore par git) :
 |---|---|---|
 | `release/repere-0.1.0.dmg` | macOS | Installateur — glisser l'app dans "Applications" |
 | `release/repere-0.1.0.zip` | macOS | Meme app, en zip (alternative au dmg) |
-| `release/mac/Repère.app` | macOS | L'app non compressee, pour test rapide |
+| `release/mac/Repere.app` | macOS | L'app non compressee, pour test rapide |
 | `release/repere-0.1.0.exe` | Windows | Installateur — double-clic, choix du dossier d'installation |
-| `release/win-unpacked/Repère.exe` | Windows | L'app non compressee, pour test rapide |
+| `release/win-unpacked/Repere.exe` | Windows | L'app non compressee, pour test rapide |
 
 > Le nom de fichier (`artifactName` dans `package.json`) utilise le nom npm
-> sans accent (`repere`) plutot que `productName` ("Repère") : un accent dans
-> le nom de fichier a fait echouer silencieusement l'upload de certains
-> assets (blockmap, `latest.yml`) vers les GitHub Releases lors du premier
-> essai — corrige une fois pour toutes via `artifactName`.
+> sans accent (`repere`) plutot que `productName` : un accent dans le nom de
+> fichier a fait echouer silencieusement l'upload de certains assets
+> (blockmap, `latest.yml`) vers les GitHub Releases lors du premier essai —
+> corrige une fois pour toutes via `artifactName`.
+>
+> **`productName` lui-meme doit aussi rester sans accent** ("Repere", pas
+> "Repère") : avec l'accent, le build macOS (Electron 41.7.1) plante au tout
+> premier lancement (`EXC_BREAKPOINT`/`SIGTRAP`, avant meme la creation de la
+> fenetre — confirme reproductible en testant `Contents/MacOS/<nom>`
+> directement). `productName` determine le nom du bundle `.app` et de
+> l'executable interne ; l'accent dans **ce nom technique precis** suffit a
+> declencher le crash, meme si le reste de l'app (titre de fenetre, texte
+> affiche a l'ecran) garde "Repère" sans probleme — ce sont deux choses
+> distinctes.
 
 Les fichiers `.blockmap` a cote des installateurs servent aux mises a jour differentielles automatiques
 (non utilisees ici) — ils peuvent etre ignores ou supprimes sans consequence.
