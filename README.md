@@ -168,11 +168,17 @@ Les fichiers generes atterrissent dans `release/` (ignore par git) :
 
 | Fichier | Plateforme | Description |
 |---|---|---|
-| `release/Repère-0.1.0.dmg` | macOS | Installateur — glisser l'app dans "Applications" |
-| `release/Repère-0.1.0-mac.zip` | macOS | Meme app, en zip (alternative au dmg) |
+| `release/repere-0.1.0.dmg` | macOS | Installateur — glisser l'app dans "Applications" |
+| `release/repere-0.1.0.zip` | macOS | Meme app, en zip (alternative au dmg) |
 | `release/mac/Repère.app` | macOS | L'app non compressee, pour test rapide |
-| `release/Repère Setup 0.1.0.exe` | Windows | Installateur — double-clic, choix du dossier d'installation |
+| `release/repere-0.1.0.exe` | Windows | Installateur — double-clic, choix du dossier d'installation |
 | `release/win-unpacked/Repère.exe` | Windows | L'app non compressee, pour test rapide |
+
+> Le nom de fichier (`artifactName` dans `package.json`) utilise le nom npm
+> sans accent (`repere`) plutot que `productName` ("Repère") : un accent dans
+> le nom de fichier a fait echouer silencieusement l'upload de certains
+> assets (blockmap, `latest.yml`) vers les GitHub Releases lors du premier
+> essai — corrige une fois pour toutes via `artifactName`.
 
 Les fichiers `.blockmap` a cote des installateurs servent aux mises a jour differentielles automatiques
 (non utilisees ici) — ils peuvent etre ignores ou supprimes sans consequence.

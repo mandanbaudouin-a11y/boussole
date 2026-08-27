@@ -43,6 +43,7 @@
   "build": {
     "appId": "com.repere.app",
     "productName": "Repère",
+    "artifactName": "${name}-${version}.${ext}",
     "npmRebuild": false,
     "publish": {
       "provider": "github",
