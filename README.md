@@ -106,6 +106,17 @@ Cette commande lance en parallele l'API (port 3001) et le serveur Vite (generale
 La base SQLite est creee et peuplee automatiquement au premier lancement si elle n'existe pas encore, dans
 `data/`.
 
+## Tests
+
+```bash
+npm test
+```
+
+Suite (`tests/`, via Vitest) : tests unitaires de `server/auth.js` (hachage des mots de passe, verrouillage
+apres 5 echecs) et tests d'integration des routes `/api/auth/*` (inscription, connexion, sessions) contre un
+serveur reel demarre sur un port libre. Chaque fichier de test utilise sa propre base SQLite temporaire
+(jamais `data/` ni une base d'app installee) — voir `tests/setup.js`.
+
 ## Application de bureau (Electron)
 
 L'app se lance en double-cliquant une icone, sans terminal : le serveur Express et la base SQLite demarrent

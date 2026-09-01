@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "concurrently -n api,web -c green,cyan \"npm:server\" \"vite\"",
     "server": "node server/index.js",
+    "test": "vitest run",
     "build": "vite build",
     "preview": "vite preview",
     "electron": "npm run build && electron .",
@@ -35,7 +36,8 @@
     "concurrently": "^9.2.4",
     "electron": "^41.7.1",
     "electron-builder": "^26.15.3",
-    "vite": "^5.4.1"
+    "vite": "^5.4.1",
+    "vitest": "^4.1.11"
   },
   "overrides": {
     "@noble/hashes": "1.8.0"
