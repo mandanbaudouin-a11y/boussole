@@ -112,10 +112,20 @@ La base SQLite est creee et peuplee automatiquement au premier lancement si elle
 npm test
 ```
 
-Suite (`tests/`, via Vitest) : tests unitaires de `server/auth.js` (hachage des mots de passe, verrouillage
-apres 5 echecs) et tests d'integration des routes `/api/auth/*` (inscription, connexion, sessions) contre un
-serveur reel demarre sur un port libre. Chaque fichier de test utilise sa propre base SQLite temporaire
-(jamais `data/` ni une base d'app installee) — voir `tests/setup.js`.
+Suite (`tests/`, via Vitest, 76 tests) :
+- `tests/auth.test.js` — hachage des mots de passe, verrouillage apres 5 echecs
+- `tests/api.test.js`, `tests/students.test.js`, `tests/peripheral.test.js` — routes `/api/*` (auth, eleves,
+  objectifs, adaptations, modifications, plan de transition, notes, sauvegarde/restauration) contre un
+  serveur reel demarre sur un port libre, y compris les droits enseignant/EA au cas par cas (ex. l'EA peut
+  cocher un objectif mais pas en modifier le texte)
+- `tests/reviewDate.test.js` — logique pure de dates/pluriel
+- `tests/components/` — composants React (`@testing-library/react`, environnement jsdom via
+  `// @vitest-environment jsdom` en tete de fichier)
+
+Chaque fichier de test utilise sa propre base SQLite temporaire (jamais `data/` ni une base d'app installee)
+— voir `tests/setup.js`. L'environnement par defaut est `node` (pas `jsdom`) : jsdom redefinit
+`FormData`/`Blob` globalement, ce qui casse l'encodage multipart du `fetch` natif de Node utilise par les
+tests d'upload — d'ou l'activation de jsdom au cas par cas plutot que globalement.
 
 ## Application de bureau (Electron)
 
