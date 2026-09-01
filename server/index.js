@@ -1138,8 +1138,12 @@ const DEFAULT_PORT = process.env.PORT || 3001
 
 export function start(port = DEFAULT_PORT) {
   return new Promise((resolve, reject) => {
+    // N'écoute que sur cette machine (127.0.0.1) : sans ça, Node ecoute par
+    // defaut sur toutes les interfaces reseau, ce qui rend l'ecran de
+    // connexion joignable par n'importe qui sur le meme reseau Wi-Fi, pas
+    // seulement sur cet ordinateur.
     const server = app
-      .listen(port, () => {
+      .listen(port, '127.0.0.1', () => {
         console.log(`API Repère sur http://localhost:${port}`)
         resolve(server)
       })
