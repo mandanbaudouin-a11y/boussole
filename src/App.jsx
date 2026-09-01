@@ -354,7 +354,14 @@ export default function App() {
             <p className="brand">Repère</p>
           </div>
         </div>
-        <p className="brand-sub">{t('École Rivière-Rouge · Prototype')}</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 32px' }}>
+          <img
+            src="/logo-ecole-riviere-rouge.png"
+            alt=""
+            style={{ width: 22, height: 22, borderRadius: 6, background: '#fff', padding: 2, objectFit: 'contain', flexShrink: 0 }}
+          />
+          <p className="brand-sub" style={{ margin: 0 }}>{t('École Rivière-Rouge · Prototype')}</p>
+        </div>
         <LanguageToggle className="on-dark" style={{ marginBottom: 20 }} />
         <nav className="nav">
           {navItems.map((item) => (

@@ -87,7 +87,14 @@ export default function AuthScreen({ mode, onSubmit, message }) {
               {t('Suivi des objectifs, adaptations et révisions — prêt à partager en rencontre avec les parents.')}
             </p>
           </div>
-          <p className="auth-panel-brand-footer">{t('École Rivière-Rouge')}</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <img
+              src="/logo-ecole-riviere-rouge.png"
+              alt=""
+              style={{ width: 30, height: 30, borderRadius: 8, background: '#fff', padding: 3, objectFit: 'contain' }}
+            />
+            <p className="auth-panel-brand-footer" style={{ margin: 0 }}>{t('École Rivière-Rouge')}</p>
+          </div>
         </div>
 
         <form className="auth-panel-form" onSubmit={submit}>
