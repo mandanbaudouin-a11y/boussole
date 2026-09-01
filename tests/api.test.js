@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 import { db } from '../server/db.js'
 import { start } from '../server/index.js'
 import { clearFailedAttempts } from '../server/auth.js'
+import { setupTeacher, login, cookieFrom } from './helpers.js'
 
 let baseUrl
 let server
@@ -23,26 +24,6 @@ beforeEach(() => {
   clearFailedAttempts('prof')
 })
 
-function cookieFrom(res) {
-  const raw = res.headers.get('set-cookie')
-  return raw ? raw.split(';')[0] : null
-}
-
-async function setupTeacher(overrides = {}) {
-  const res = await fetch(`${baseUrl}/api/auth/setup`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      username: 'prof',
-      password: 'test1234',
-      nomComplet: 'Baudouin Mandan',
-      courriel: 'prof@ecole.ca',
-      ...overrides,
-    }),
-  })
-  return res
-}
-
 describe('GET /api/auth/status', () => {
   it('indique needsSetup tant qu aucun compte n existe', async () => {
     const res = await fetch(`${baseUrl}/api/auth/status`)
@@ -55,87 +36,68 @@ describe('GET /api/auth/status', () => {
 
 describe('POST /api/auth/setup', () => {
   it('cree le premier compte enseignant et ouvre une session', async () => {
-    const res = await setupTeacher()
+    const { res, cookie } = await setupTeacher(baseUrl)
     const body = await res.json()
     expect(res.status).toBe(201)
     expect(body.username).toBe('prof')
     expect(body.role).toBe('enseignant')
-    expect(cookieFrom(res)).toBeTruthy()
+    expect(cookie).toBeTruthy()
   })
 
   it('refuse un second compte enseignant', async () => {
-    await setupTeacher()
-    const res = await setupTeacher({ username: 'prof2' })
+    await setupTeacher(baseUrl)
+    const { res } = await setupTeacher(baseUrl, { username: 'prof2' })
     expect(res.status).toBe(409)
   })
 
   it('refuse un mot de passe trop court', async () => {
-    const res = await setupTeacher({ password: 'court' })
+    const { res } = await setupTeacher(baseUrl, { password: 'court' })
     expect(res.status).toBe(400)
   })
 
   it('refuse un courriel invalide', async () => {
-    const res = await setupTeacher({ courriel: 'pas-un-courriel' })
+    const { res } = await setupTeacher(baseUrl, { courriel: 'pas-un-courriel' })
     expect(res.status).toBe(400)
   })
 })
 
 describe('POST /api/auth/login', () => {
   beforeEach(async () => {
-    await setupTeacher()
+    await setupTeacher(baseUrl)
   })
 
   it('accepte le bon mot de passe et role', async () => {
-    const res = await fetch(`${baseUrl}/api/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: 'prof', password: 'test1234', role: 'enseignant' }),
-    })
+    const { res, cookie } = await login(baseUrl, { username: 'prof', password: 'test1234', role: 'enseignant' })
     expect(res.status).toBe(200)
-    expect(cookieFrom(res)).toBeTruthy()
+    expect(cookie).toBeTruthy()
   })
 
   it('rejette un mauvais mot de passe', async () => {
-    const res = await fetch(`${baseUrl}/api/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: 'prof', password: 'mauvais', role: 'enseignant' }),
-    })
+    const { res } = await login(baseUrl, { username: 'prof', password: 'mauvais', role: 'enseignant' })
     expect(res.status).toBe(401)
   })
 
   it('rejette un role qui ne correspond pas au compte', async () => {
-    const res = await fetch(`${baseUrl}/api/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: 'prof', password: 'test1234', role: 'ea' }),
-    })
+    const { res } = await login(baseUrl, { username: 'prof', password: 'test1234', role: 'ea' })
     expect(res.status).toBe(401)
   })
 
-  it('verrouille apres 5 echecs puis debloque une fois le compteur remis a zero', async () => {
-    for (let i = 0; i < 5; i++) {
-      await fetch(`${baseUrl}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: 'prof', password: 'mauvais', role: 'enseignant' }),
-      })
-    }
-    const locked = await fetch(`${baseUrl}/api/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: 'prof', password: 'test1234', role: 'enseignant' }),
-    })
-    expect(locked.status).toBe(429)
-  })
+  it(
+    'verrouille apres 5 echecs puis debloque une fois le compteur remis a zero',
+    async () => {
+      // 6 requetes sequentielles qui hachent chacune un mot de passe (bcrypt,
+      // 12 rounds) : plus long que le timeout par defaut d'un test.
+      for (let i = 0; i < 5; i++) {
+        await login(baseUrl, { username: 'prof', password: 'mauvais', role: 'enseignant' })
+      }
+      const { res } = await login(baseUrl, { username: 'prof', password: 'test1234', role: 'enseignant' })
+      expect(res.status).toBe(429)
+    },
+    15000
+  )
 
   it('une session ouverte se reflete dans /api/auth/status', async () => {
-    const loginRes = await fetch(`${baseUrl}/api/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: 'prof', password: 'test1234', role: 'enseignant' }),
-    })
-    const cookie = cookieFrom(loginRes)
+    const { cookie } = await login(baseUrl, { username: 'prof', password: 'test1234', role: 'enseignant' })
     const statusRes = await fetch(`${baseUrl}/api/auth/status`, { headers: { Cookie: cookie } })
     const body = await statusRes.json()
     expect(body.authenticated).toBe(true)
