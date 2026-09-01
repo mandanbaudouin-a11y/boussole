@@ -15,6 +15,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const FONT_REGULAR = path.join(__dirname, 'assets', 'fonts', 'DejaVuSans.ttf')
 const FONT_BOLD = path.join(__dirname, 'assets', 'fonts', 'DejaVuSans-Bold.ttf')
 const LOGO_ICON = path.join(__dirname, 'assets', 'logo', 'icon.png')
+const LOGO_ECOLE = path.join(__dirname, 'assets', 'logo', 'ecole-riviere-rouge.png')
 
 function reviewDaysLabel(days, lang) {
   const n = Math.abs(days)
@@ -160,14 +161,18 @@ function renderStudent(doc, student, { ecole, divisionScolaire, generatedBy, lan
   const today = new Date().toLocaleDateString(lang === 'en' ? 'en-CA' : 'fr-CA', { day: 'numeric', month: 'long', year: 'numeric' })
 
   const logoSize = 26
+  const ecoleLogoSize = 30
   const cursorX = doc.x
   const cursorY = doc.y
+  doc.image(LOGO_ECOLE, cursorX, cursorY - 3, { width: ecoleLogoSize, height: ecoleLogoSize })
   doc.image(LOGO_ICON, doc.page.width - doc.page.margins.right - logoSize, cursorY - 3, { width: logoSize, height: logoSize })
   doc.x = cursorX
   doc.y = cursorY
 
+  const headerTextX = cursorX + ecoleLogoSize + 10
+  const headerTextWidth = contentWidth - ecoleLogoSize - 10 - logoSize - 12
   const headerLine = (ecole || t('École non précisée', lang)).toUpperCase() + (divisionScolaire ? `  ·  ${divisionScolaire.toUpperCase()}` : '')
-  doc.font('bold').fontSize(9).fillColor(COLORS.inkSoft).text(headerLine, { width: contentWidth - logoSize - 12, characterSpacing: 0.5 })
+  doc.font('bold').fontSize(9).fillColor(COLORS.inkSoft).text(headerLine, headerTextX, cursorY, { width: headerTextWidth, characterSpacing: 0.5 })
   const reportLine =
     lang === 'en'
       ? `Progress report — IEP · Generated on ${today}${generatedBy ? ' by ' + generatedBy : ''}`
@@ -176,7 +181,9 @@ function renderStudent(doc, student, { ecole, divisionScolaire, generatedBy, lan
     .font('regular')
     .fontSize(9)
     .fillColor(COLORS.inkSoft)
-    .text(reportLine, { width: contentWidth - logoSize - 12 })
+    .text(reportLine, headerTextX, doc.y, { width: headerTextWidth })
+  doc.x = cursorX
+  if (doc.y < cursorY + ecoleLogoSize) doc.y = cursorY + ecoleLogoSize
   doc.moveDown(0.5)
   ruleAt(doc, doc.y)
   doc.moveDown(0.9)
