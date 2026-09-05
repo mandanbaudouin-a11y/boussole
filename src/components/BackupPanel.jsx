@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { api } from '../api'
 import { useLanguage } from '../i18n/LanguageContext'
+import { getLastBackupAt, setLastBackupAt, lastBackupLabel } from '../lastBackup'
 
 export default function BackupPanel({ onRestored }) {
   const { t } = useLanguage()
@@ -8,6 +9,7 @@ export default function BackupPanel({ onRestored }) {
 
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState(null)
+  const [lastBackupAt, setLastBackupAtState] = useState(getLastBackupAt)
 
   const [restoreOpen, setRestoreOpen] = useState(false)
   const [pendingFile, setPendingFile] = useState(null)
@@ -28,6 +30,9 @@ export default function BackupPanel({ onRestored }) {
       a.click()
       a.remove()
       URL.revokeObjectURL(url)
+      const now = new Date().toISOString()
+      setLastBackupAt(now)
+      setLastBackupAtState(now)
     } catch (err) {
       setExportError(err.message)
     } finally {
@@ -78,6 +83,10 @@ export default function BackupPanel({ onRestored }) {
       </p>
 
       {exportError && <div className="alert alert-urgent" style={{ marginBottom: 12 }}>{exportError}</div>}
+
+      <p className="backup-hint" style={{ fontWeight: 600, color: lastBackupAt ? 'var(--ink-soft)' : 'var(--urgent)' }}>
+        {lastBackupLabel(lastBackupAt, t)}
+      </p>
 
       <div className="form-row">
         <button className="btn" onClick={handleExport} disabled={exporting}>

@@ -86,7 +86,14 @@ export const en = {
   'Niveau (ex. 2e année)': 'Grade (e.g. Grade 2)',
   Enregistrer: 'Save',
   Annuler: 'Cancel',
-  'Supprimer {name} et tous ses objectifs ?': "Delete {name} and all their goals?",
+  'Supprimer {name} et tous ses objectifs ? Cette action est irréversible.':
+    'Delete {name} and all their goals? This action is irreversible.',
+  'Supprimer cet objectif ? Cette action est irréversible.': 'Delete this goal? This action is irreversible.',
+  'Retirer cette adaptation ?': 'Remove this adaptation?',
+  'Retirer cette modification ?': 'Remove this modification?',
+  'Supprimer cet objectif de transition ? Cette action est irréversible.':
+    'Delete this transition goal? This action is irreversible.',
+  'Retirer cette étape ?': 'Remove this step?',
 
   // ---------- Révisions ----------
   'en retard de {n} jour': 'overdue by {n} day',
@@ -220,6 +227,10 @@ export const en = {
   // ---------- Sauvegarde ----------
   'Exporter une sauvegarde': 'Export a backup',
   'Restaurer une sauvegarde': 'Restore a backup',
+  'Aucune sauvegarde effectuée': 'No backup has been made yet',
+  "Dernière sauvegarde : aujourd'hui": 'Last backup: today',
+  'Dernière sauvegarde : hier': 'Last backup: yesterday',
+  'Dernière sauvegarde : il y a {n} jours': 'Last backup: {n} days ago',
   Fermer: 'Close',
   'Cette action': 'This action',
   'remplace définitivement': 'permanently replaces',
