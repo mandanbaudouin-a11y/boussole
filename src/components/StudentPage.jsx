@@ -18,6 +18,7 @@ import { api } from '../api'
 import { triggerBlobDownload } from '../downloadBlob'
 import { initials, avatarColor } from '../avatar'
 import { useLanguage } from '../i18n/LanguageContext'
+import { useConfirm } from '../ConfirmContext'
 
 function formatDate(dateStr, lang) {
   if (!dateStr) return null
@@ -30,6 +31,7 @@ function formatDate(dateStr, lang) {
 
 function StudentHeader({ student, canEdit, onEditStudent, onRemoveStudent }) {
   const { t } = useLanguage()
+  const confirm = useConfirm()
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(student.name)
   const [grade, setGrade] = useState(student.grade)
@@ -104,8 +106,9 @@ function StudentHeader({ student, canEdit, onEditStudent, onRemoveStudent }) {
             <button className="btn" onClick={() => setEditing(true)}>{t('Modifier')}</button>
             <button
               className="btn btn-danger"
-              onClick={() => {
-                if (confirm(t('Supprimer {name} et tous ses objectifs ?', { name: student.name }))) onRemoveStudent(student.id)
+              onClick={async () => {
+                if (await confirm(t('Supprimer {name} et tous ses objectifs ? Cette action est irréversible.', { name: student.name })))
+                  onRemoveStudent(student.id)
               }}
             >
               {t("Supprimer l'élève")}
@@ -434,6 +437,7 @@ function AddAdaptationForm({ studentId, goals, onAdd }) {
 
 function AdaptationRow({ adaptation, canEdit, onRemove }) {
   const { t } = useLanguage()
+  const confirm = useConfirm()
   return (
     <div className="goal-row" style={{ alignItems: 'flex-start' }}>
       <div style={{ flex: 1 }}>
@@ -446,7 +450,15 @@ function AdaptationRow({ adaptation, canEdit, onRemove }) {
         )}
       </div>
       {canEdit && (
-        <button className="icon-btn icon-btn-danger" onClick={onRemove} title={t('Retirer')}>&times;</button>
+        <button
+          className="icon-btn icon-btn-danger"
+          onClick={async () => {
+            if (await confirm(t('Retirer cette adaptation ?'))) onRemove()
+          }}
+          title={t('Retirer')}
+        >
+          &times;
+        </button>
       )}
     </div>
   )
@@ -494,6 +506,7 @@ function AddModificationForm({ studentId, onAdd }) {
 
 function ModificationRow({ modification, canEdit, onRemove }) {
   const { t } = useLanguage()
+  const confirm = useConfirm()
   return (
     <div className="goal-row" style={{ alignItems: 'flex-start' }}>
       <div style={{ flex: 1 }}>
@@ -504,7 +517,15 @@ function ModificationRow({ modification, canEdit, onRemove }) {
         <p className="page-date" style={{ margin: '4px 0 0' }}>{t('Matière : {subject}', { subject: modification.subject })}</p>
       </div>
       {canEdit && (
-        <button className="icon-btn icon-btn-danger" onClick={onRemove} title={t('Retirer')}>&times;</button>
+        <button
+          className="icon-btn icon-btn-danger"
+          onClick={async () => {
+            if (await confirm(t('Retirer cette modification ?'))) onRemove()
+          }}
+          title={t('Retirer')}
+        >
+          &times;
+        </button>
       )}
     </div>
   )
@@ -653,12 +674,20 @@ function AddTransitionStepForm({ studentId, goalId, onAdd }) {
 
 function TransitionGoalCard({ studentId, goal, canEdit, onRemoveGoal, onAddStep, onRemoveStep }) {
   const { t, lang } = useLanguage()
+  const confirm = useConfirm()
   return (
     <div className="card">
       <div className="card-header">
         <p className="student-name" style={{ fontSize: 15, cursor: 'default' }}>{goal.description}</p>
         {canEdit && (
-          <button className="icon-btn icon-btn-danger" onClick={() => onRemoveGoal(studentId, goal.id)} title={t('Supprimer')}>
+          <button
+            className="icon-btn icon-btn-danger"
+            onClick={async () => {
+              if (await confirm(t("Supprimer cet objectif de transition ? Cette action est irréversible.")))
+                onRemoveGoal(studentId, goal.id)
+            }}
+            title={t('Supprimer')}
+          >
             &times;
           </button>
         )}
@@ -681,7 +710,13 @@ function TransitionGoalCard({ studentId, goal, canEdit, onRemoveGoal, onAddStep,
         <div className="goal-row" key={s.id}>
           <span className="goal-label">{s.description}</span>
           {canEdit && (
-            <button className="icon-btn icon-btn-danger" onClick={() => onRemoveStep(studentId, goal.id, s.id)} title={t('Retirer')}>
+            <button
+              className="icon-btn icon-btn-danger"
+              onClick={async () => {
+                if (await confirm(t('Retirer cette étape ?'))) onRemoveStep(studentId, goal.id, s.id)
+              }}
+              title={t('Retirer')}
+            >
               &times;
             </button>
           )}

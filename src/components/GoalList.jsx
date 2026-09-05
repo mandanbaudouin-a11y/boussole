@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { GOAL_STATUSES, GOAL_STATUS_LABELS, GOAL_STATUS_ICONS, formatHistoryDate } from '../goalStatus'
 import { STRATEGY_CATEGORY_LABELS } from '../strategyCategories'
 import { useLanguage } from '../i18n/LanguageContext'
+import { useConfirm } from '../ConfirmContext'
 
 function StrategyChip({ strategy, canEdit, onRemove }) {
   const { t } = useLanguage()
@@ -168,6 +169,7 @@ export function GoalRow({
   canEdit,
 }) {
   const { t } = useLanguage()
+  const confirm = useConfirm()
   const [editing, setEditing] = useState(false)
   const [label, setLabel] = useState(goal.label)
 
@@ -233,7 +235,9 @@ export function GoalRow({
             <button className="icon-btn" onClick={() => setEditing(true)} title={t('Modifier')}>&#9998;</button>
             <button
               className="icon-btn icon-btn-danger"
-              onClick={() => onRemoveGoal(studentId, goal.id)}
+              onClick={async () => {
+                if (await confirm(t('Supprimer cet objectif ? Cette action est irréversible.'))) onRemoveGoal(studentId, goal.id)
+              }}
               title={t('Supprimer')}
             >
               &times;

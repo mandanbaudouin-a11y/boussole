@@ -6,6 +6,7 @@ import { triggerBlobDownload } from '../downloadBlob'
 import { defaultNextReviewDate, reviewDaysLabel } from '../reviewDate'
 import { initials, avatarColor } from '../avatar'
 import { useLanguage } from '../i18n/LanguageContext'
+import { useConfirm } from '../ConfirmContext'
 
 function NewStudentForm({ onAddStudent, onDone }) {
   const { t } = useLanguage()
@@ -61,6 +62,7 @@ function NewStudentForm({ onAddStudent, onDone }) {
 
 function StudentCard({ student, canEdit, onOpenStudent, onRemoveStudent }) {
   const { t } = useLanguage()
+  const confirm = useConfirm()
   const achievedCount = student.goals.filter((g) => g.status === 'atteint' || g.status === 'depasse').length
   const goalCount = student.goals.length
   const late = student.reviewInDays < 0
@@ -79,9 +81,10 @@ function StudentCard({ student, canEdit, onOpenStudent, onRemoveStudent }) {
           <button
             className="icon-btn icon-btn-danger"
             title={t("Supprimer l'élève")}
-            onClick={(e) => {
+            onClick={async (e) => {
               e.stopPropagation()
-              if (confirm(t('Supprimer {name} et tous ses objectifs ?', { name: student.name }))) onRemoveStudent(student.id)
+              if (await confirm(t('Supprimer {name} et tous ses objectifs ? Cette action est irréversible.', { name: student.name })))
+                onRemoveStudent(student.id)
             }}
           >
             &times;
