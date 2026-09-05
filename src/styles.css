@@ -1045,6 +1045,29 @@ body {
   gap: 13px;
 }
 
+/* Petit indicateur sur l'avatar signalant une révision en retard/proche,
+   visible d'un coup d'œil sans avoir à lire le pied de la carte ou aller
+   consulter la section Révisions séparément. */
+.urgency-dot {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--paper-raised);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+}
+
+.urgency-dot-late { background: var(--urgent); }
+.urgency-dot-approaching { background: var(--mark); width: 12px; height: 12px; }
+
 .student-card-name {
   font-size: 17px;
   font-weight: 600;

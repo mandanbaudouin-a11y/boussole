@@ -66,12 +66,24 @@ function StudentCard({ student, canEdit, onOpenStudent, onRemoveStudent }) {
   const achievedCount = student.goals.filter((g) => g.status === 'atteint' || g.status === 'depasse').length
   const goalCount = student.goals.length
   const late = student.reviewInDays < 0
+  // Même seuil que la carte "Révisions à venir" du tableau de bord (14 jours).
+  const approaching = !late && student.reviewInDays <= 14
 
   return (
     <div className="student-card" onClick={() => onOpenStudent(student.id)}>
       <div className="student-card-top">
-        <div className="avatar" style={{ width: 44, height: 44, fontSize: 15.5, background: avatarColor(student.id) }}>
-          {initials(student.name)}
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <div className="avatar" style={{ width: 44, height: 44, fontSize: 15.5, background: avatarColor(student.id) }}>
+            {initials(student.name)}
+          </div>
+          {(late || approaching) && (
+            <span
+              className={`urgency-dot ${late ? 'urgency-dot-late' : 'urgency-dot-approaching'}`}
+              title={late ? reviewDaysLabel(student.reviewInDays, t) : t('Révision bientôt due')}
+            >
+              {late ? '!' : ''}
+            </span>
+          )}
         </div>
         <div style={{ minWidth: 0, flex: 1 }}>
           <p className="student-card-name">{student.name}</p>

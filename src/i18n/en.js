@@ -78,6 +78,7 @@ export const en = {
   'atteint': 'achieved',
   'atteints': 'achieved',
   'À jour': 'Up to date',
+  'Révision bientôt due': 'Review due soon',
   'Ajouter un élève': 'Add a student',
   "Créez un PEI à partir d'une page vierge ou d'un import.": 'Create an IEP from a blank page or an import.',
   'Révision du PEI de {name} {days}': "{name}'s IEP review {days}",
