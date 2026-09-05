@@ -371,16 +371,17 @@ body {
 .status-history-toggle {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--ink-soft);
-  background: none;
-  border: none;
+  font-weight: 700;
+  color: var(--chalk);
+  background: var(--chalk-soft);
+  border: 1px solid var(--chalk-soft-border);
+  border-radius: 999px;
   cursor: pointer;
-  padding: 0;
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  padding: 4px 10px;
+  display: inline-block;
 }
 
-.status-history-toggle:hover { color: var(--ink); }
+.status-history-toggle:hover { color: #fff; background: var(--chalk); border-color: var(--chalk); }
 
 .status-history-list {
   margin: 0 0 10px;
