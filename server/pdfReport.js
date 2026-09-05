@@ -55,27 +55,27 @@ function reportSummaryText(student, lang) {
     return student.narrativeReport.trim()
   }
 
-  const doneCount = student.goals.filter((g) => g.done).length
+  const achievedCount = student.goals.filter((g) => g.status === 'atteint' || g.status === 'depasse').length
   const hasWeeklyRate = student.weeklyRate.length > 0
   const firstName = student.name.split(' ')[0]
 
   if (lang === 'en') {
     if (!hasWeeklyRate) {
-      return `No weekly history is available yet for ${firstName}. Today, ${doneCount} of ${student.goals.length} goal${student.goals.length > 1 ? 's' : ''} ${doneCount > 1 ? 'have' : 'has'} been marked as achieved.`
+      return `No weekly history is available yet for ${firstName}. Currently, ${achievedCount} of ${student.goals.length} goal${student.goals.length > 1 ? 's' : ''} ${achievedCount > 1 ? 'are' : 'is'} achieved.`
     }
     const avgRate = Math.round(student.weeklyRate.reduce((sum, w) => sum + w.pct, 0) / student.weeklyRate.length)
     const firstRate = student.weeklyRate[0].pct
     const lastRate = student.weeklyRate[student.weeklyRate.length - 1].pct
     return (
       `Over the last ${student.weeklyRate.length} weeks, ${firstName} reached an average success rate ` +
-      `of ${avgRate}% across all active goals in their IEP. Today, ${doneCount} of ${student.goals.length} goal${student.goals.length > 1 ? 's' : ''} ${doneCount > 1 ? 'have' : 'has'} been marked as achieved. The weekly ` +
+      `of ${avgRate}% across all active goals in their IEP. Currently, ${achievedCount} of ${student.goals.length} goal${student.goals.length > 1 ? 's' : ''} ${achievedCount > 1 ? 'are' : 'is'} achieved. The weekly ` +
       `trend is ${lastRate >= firstRate ? 'trending up' : 'stable'}, moving ` +
       `from ${firstRate}% in week 1 to ${lastRate}% in week ${student.weeklyRate.length}.`
     )
   }
 
   if (!hasWeeklyRate) {
-    return `Aucun historique hebdomadaire n'est encore disponible pour ${firstName}. Aujourd'hui, ${doneCount} objectif${doneCount > 1 ? 's' : ''} sur ${student.goals.length} ${doneCount > 1 ? 'ont' : 'a'} été coché${doneCount > 1 ? 's' : ''} comme atteint${doneCount > 1 ? 's' : ''}.`
+    return `Aucun historique hebdomadaire n'est encore disponible pour ${firstName}. Actuellement, ${achievedCount} objectif${achievedCount > 1 ? 's' : ''} sur ${student.goals.length} ${achievedCount > 1 ? 'sont atteints' : 'est atteint'}.`
   }
 
   const avgRate = Math.round(student.weeklyRate.reduce((sum, w) => sum + w.pct, 0) / student.weeklyRate.length)
@@ -84,7 +84,7 @@ function reportSummaryText(student, lang) {
 
   return (
     `Sur les ${student.weeklyRate.length} dernières semaines, ${firstName} a atteint un taux moyen de ` +
-    `réussite de ${avgRate}% sur l'ensemble des objectifs actifs de son PEI. Aujourd'hui, ${doneCount} objectif${doneCount > 1 ? 's' : ''} sur ${student.goals.length} ${doneCount > 1 ? 'ont' : 'a'} été coché${doneCount > 1 ? 's' : ''} comme atteint${doneCount > 1 ? 's' : ''}. La tendance ` +
+    `réussite de ${avgRate}% sur l'ensemble des objectifs actifs de son PEI. Actuellement, ${achievedCount} objectif${achievedCount > 1 ? 's' : ''} sur ${student.goals.length} ${achievedCount > 1 ? 'sont atteints' : 'est atteint'}. La tendance ` +
     `hebdomadaire est ${lastRate >= firstRate ? 'à la hausse' : 'stable'}, passant ` +
     `de ${firstRate}% en semaine 1 à ${lastRate}% en semaine ${student.weeklyRate.length}.`
   )
@@ -191,14 +191,14 @@ function renderStudent(doc, student, { ecole, divisionScolaire, generatedBy, lan
   doc.font('bold').fontSize(19).fillColor(COLORS.chalk).text(`${student.name} — ${student.grade}`)
   doc.moveDown(0.6)
 
-  const doneCount = student.goals.filter((g) => g.done).length
+  const achievedCount = student.goals.filter((g) => g.status === 'atteint' || g.status === 'depasse').length
   const avgRate = student.weeklyRate.length
     ? Math.round(student.weeklyRate.reduce((sum, w) => sum + w.pct, 0) / student.weeklyRate.length)
     : 0
   const statsLine =
     lang === 'en'
-      ? `Average rate: ${avgRate}%    ·    Active goals: ${student.goals.length}    ·    Achieved today: ${doneCount}/${student.goals.length}`
-      : `Taux moyen : ${avgRate}%    ·    Objectifs actifs : ${student.goals.length}    ·    Atteints aujourd'hui : ${doneCount}/${student.goals.length}`
+      ? `Average rate: ${avgRate}%    ·    Active goals: ${student.goals.length}    ·    Achieved: ${achievedCount}/${student.goals.length}`
+      : `Taux moyen : ${avgRate}%    ·    Objectifs actifs : ${student.goals.length}    ·    Atteints : ${achievedCount}/${student.goals.length}`
   doc.font('regular').fontSize(10).fillColor(COLORS.inkSoft).text(statsLine)
 
   if (student.forces || student.besoins) {

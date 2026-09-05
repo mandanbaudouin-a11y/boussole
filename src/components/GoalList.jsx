@@ -159,7 +159,6 @@ function GoalDetails({ studentId, goal, canEdit, strategiesLibrary, onAddStrateg
 export function GoalRow({
   studentId,
   goal,
-  onToggleGoal,
   onEditGoal,
   onRemoveGoal,
   onChangeStatus,
@@ -202,15 +201,7 @@ export function GoalRow({
   return (
     <div>
       <div className="goal-row">
-        <label style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>
-          <input
-            type="checkbox"
-            className="goal-check"
-            checked={goal.done}
-            onChange={() => onToggleGoal(studentId, goal.id)}
-          />
-          <span className={`goal-label ${goal.done ? 'done' : ''}`}>{goal.label}</span>
-        </label>
+        <span className="goal-label" style={{ flex: 1 }}>{goal.label}</span>
 
         {canEdit ? (
           <select

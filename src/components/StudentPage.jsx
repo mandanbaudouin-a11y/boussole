@@ -290,7 +290,6 @@ function ProfilTab({ student, canEdit, onEditStudent }) {
 function ObjectifsTab({
   student,
   canEdit,
-  onToggleGoal,
   onAddGoal,
   onEditGoal,
   onRemoveGoal,
@@ -301,7 +300,7 @@ function ObjectifsTab({
   onAddNote,
 }) {
   const { t } = useLanguage()
-  const doneCount = student.goals.filter((g) => g.done).length
+  const achievedCount = student.goals.filter((g) => g.status === 'atteint' || g.status === 'depasse').length
   const latestRate = student.weeklyRate.length
     ? student.weeklyRate[student.weeklyRate.length - 1].pct
     : 0
@@ -314,8 +313,8 @@ function ObjectifsTab({
           <p className="stat-value">{student.goals.length}</p>
         </div>
         <div className="stat-card">
-          <p className="stat-label">{t("Atteints aujourd'hui")}</p>
-          <p className="stat-value">{doneCount}/{student.goals.length}</p>
+          <p className="stat-label">{t('Objectifs atteints')}</p>
+          <p className="stat-value">{achievedCount}/{student.goals.length}</p>
         </div>
         <div className="stat-card">
           <p className="stat-label">{t('Taux, semaine en cours')}</p>
@@ -332,7 +331,6 @@ function ObjectifsTab({
             key={goal.id}
             studentId={student.id}
             goal={goal}
-            onToggleGoal={onToggleGoal}
             onEditGoal={onEditGoal}
             onRemoveGoal={onRemoveGoal}
             onChangeStatus={onChangeGoalStatus}
@@ -902,27 +900,27 @@ function ConsultationTab({ student, canEdit, onEditStudent }) {
 }
 
 function computedSummaryText(student, lang) {
-  const doneCount = student.goals.filter((g) => g.done).length
+  const achievedCount = student.goals.filter((g) => g.status === 'atteint' || g.status === 'depasse').length
   const hasWeeklyRate = student.weeklyRate.length > 0
   const firstName = student.name.split(' ')[0]
 
   if (lang === 'en') {
     if (!hasWeeklyRate) {
-      return `No weekly history is available yet for ${firstName}. Today, ${doneCount} of ${student.goals.length} goal${student.goals.length > 1 ? 's' : ''} ${doneCount > 1 ? 'have' : 'has'} been marked as achieved.`
+      return `No weekly history is available yet for ${firstName}. Currently, ${achievedCount} of ${student.goals.length} goal${student.goals.length > 1 ? 's' : ''} ${achievedCount > 1 ? 'are' : 'is'} achieved.`
     }
     const avgRate = Math.round(student.weeklyRate.reduce((sum, w) => sum + w.pct, 0) / student.weeklyRate.length)
     const firstRate = student.weeklyRate[0].pct
     const lastRate = student.weeklyRate[student.weeklyRate.length - 1].pct
     return (
       `Over the last ${student.weeklyRate.length} weeks, ${firstName} reached an average success rate ` +
-      `of ${avgRate}% across all active goals in their IEP. Today, ${doneCount} of ${student.goals.length} goal${student.goals.length > 1 ? 's' : ''} ${doneCount > 1 ? 'have' : 'has'} been marked as achieved. The weekly ` +
+      `of ${avgRate}% across all active goals in their IEP. Currently, ${achievedCount} of ${student.goals.length} goal${student.goals.length > 1 ? 's' : ''} ${achievedCount > 1 ? 'are' : 'is'} achieved. The weekly ` +
       `trend is ${lastRate >= firstRate ? 'trending up' : 'stable'}, moving ` +
       `from ${firstRate}% in week 1 to ${lastRate}% in week ${student.weeklyRate.length}.`
     )
   }
 
   if (!hasWeeklyRate) {
-    return `Aucun historique hebdomadaire n'est encore disponible pour ${firstName}. Aujourd'hui, ${doneCount} objectif${doneCount > 1 ? 's' : ''} sur ${student.goals.length} ${doneCount > 1 ? 'ont' : 'a'} été coché${doneCount > 1 ? 's' : ''} comme atteint${doneCount > 1 ? 's' : ''}.`
+    return `Aucun historique hebdomadaire n'est encore disponible pour ${firstName}. Actuellement, ${achievedCount} objectif${achievedCount > 1 ? 's' : ''} sur ${student.goals.length} ${achievedCount > 1 ? 'sont atteints' : 'est atteint'}.`
   }
 
   const avgRate = Math.round(student.weeklyRate.reduce((sum, w) => sum + w.pct, 0) / student.weeklyRate.length)
@@ -931,7 +929,7 @@ function computedSummaryText(student, lang) {
 
   return (
     `Sur les ${student.weeklyRate.length} dernières semaines, ${firstName} a atteint un taux moyen de ` +
-    `réussite de ${avgRate}% sur l'ensemble des objectifs actifs de son PEI. Aujourd'hui, ${doneCount} objectif${doneCount > 1 ? 's' : ''} sur ${student.goals.length} ${doneCount > 1 ? 'ont' : 'a'} été coché${doneCount > 1 ? 's' : ''} comme atteint${doneCount > 1 ? 's' : ''}. La tendance ` +
+    `réussite de ${avgRate}% sur l'ensemble des objectifs actifs de son PEI. Actuellement, ${achievedCount} objectif${achievedCount > 1 ? 's' : ''} sur ${student.goals.length} ${achievedCount > 1 ? 'sont atteints' : 'est atteint'}. La tendance ` +
     `hebdomadaire est ${lastRate >= firstRate ? 'à la hausse' : 'stable'}, passant ` +
     `de ${firstRate}% en semaine 1 à ${lastRate}% en semaine ${student.weeklyRate.length}.`
   )
@@ -1074,7 +1072,6 @@ function RapportTab({ student, canEdit, onSaveNarrativeReport }) {
     }
   }
 
-  const doneCount = student.goals.filter((g) => g.done).length
   const hasWeeklyRate = student.weeklyRate.length > 0
   const avgRate = hasWeeklyRate
     ? Math.round(student.weeklyRate.reduce((sum, w) => sum + w.pct, 0) / student.weeklyRate.length)
@@ -1182,7 +1179,6 @@ export default function StudentPage({
   onPrev,
   onNext,
   positionLabel,
-  onToggleGoal,
   onAddGoal,
   onEditGoal,
   onRemoveGoal,
@@ -1252,7 +1248,6 @@ export default function StudentPage({
         <ObjectifsTab
           student={student}
           canEdit={canEdit}
-          onToggleGoal={onToggleGoal}
           onAddGoal={onAddGoal}
           onEditGoal={onEditGoal}
           onRemoveGoal={onRemoveGoal}

@@ -336,7 +336,7 @@ function seed() {
     'INSERT INTO students (id, name, grade, next_review_date) VALUES (?, ?, ?, ?)'
   )
   const insertGoal = db.prepare(
-    'INSERT INTO goals (id, student_id, label, done, status, position) VALUES (?, ?, ?, ?, ?, ?)'
+    'INSERT INTO goals (id, student_id, label, status, position) VALUES (?, ?, ?, ?, ?)'
   )
   const insertGoalHistory = db.prepare(
     'INSERT INTO goal_status_history (goal_id, status, changed_by) VALUES (?, ?, ?)'
@@ -355,9 +355,9 @@ function seed() {
       grade: '2e année',
       nextReviewDate: dateInDays(12),
       goals: [
-        { label: 'Rester assis 10 min sans se lever', done: true, status: 'atteint' },
-        { label: 'Lever la main avant de parler', done: false, status: 'en_progres' },
-        { label: 'Faire une transition sans soutien verbal', done: true, status: 'depasse' },
+        { label: 'Rester assis 10 min sans se lever', status: 'atteint' },
+        { label: 'Lever la main avant de parler', status: 'en_progres' },
+        { label: 'Faire une transition sans soutien verbal', status: 'depasse' },
       ],
       weeklyRate: [
         { week: 'Sem. 1', pct: 40 },
@@ -376,8 +376,8 @@ function seed() {
       grade: 'Maternelle',
       nextReviewDate: dateInDays(41),
       goals: [
-        { label: "Utiliser un pictogramme pour demander de l'aide", done: false, status: 'non_atteint' },
-        { label: 'Suivre la routine du matin sans accompagnement', done: true, status: 'atteint' },
+        { label: "Utiliser un pictogramme pour demander de l'aide", status: 'non_atteint' },
+        { label: 'Suivre la routine du matin sans accompagnement', status: 'atteint' },
       ],
       weeklyRate: [
         { week: 'Sem. 1', pct: 20 },
@@ -393,9 +393,9 @@ function seed() {
       grade: '1re année',
       nextReviewDate: dateInDays(3),
       goals: [
-        { label: 'Écrire son prénom sans modèle', done: true, status: 'atteint' },
-        { label: 'Rester dans le groupe lors des déplacements', done: true, status: 'en_progres' },
-        { label: 'Utiliser des mots plutôt que des gestes', done: false, status: 'non_atteint' },
+        { label: 'Écrire son prénom sans modèle', status: 'atteint' },
+        { label: 'Rester dans le groupe lors des déplacements', status: 'en_progres' },
+        { label: 'Utiliser des mots plutôt que des gestes', status: 'non_atteint' },
       ],
       weeklyRate: [
         { week: 'Sem. 1', pct: 60 },
@@ -415,7 +415,7 @@ function seed() {
       insertStudent.run(s.id, s.name, s.grade, s.nextReviewDate)
       s.goals.forEach((g, i) => {
         const goalId = randomUUID()
-        insertGoal.run(goalId, s.id, g.label, g.done ? 1 : 0, g.status, i)
+        insertGoal.run(goalId, s.id, g.label, g.status, i)
         insertGoalHistory.run(goalId, g.status, null)
       })
       s.weeklyRate.forEach((w) => insertWeek.run(s.id, w.week, w.pct))

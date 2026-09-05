@@ -40,10 +40,13 @@ qui cree le ou les comptes EA depuis l'onglet **Comptes** (visible seulement pou
 **connexion** propose un selecteur "Enseignant / EA" ; il doit correspondre au role reel du compte, sinon
 la connexion est refusee avec un message explicite.
 
-Droits de l'EA : voir tous les eleves, cocher/decocher les objectifs existants, ajouter des notes de
-suivi. L'EA ne peut pas ajouter/supprimer des eleves, ni ajouter/modifier/supprimer le texte des objectifs,
+Droits de l'EA : voir tous les eleves et leurs objectifs, ajouter des notes de suivi. L'EA ne peut pas
+ajouter/supprimer des eleves, ni ajouter/modifier/supprimer les objectifs (texte, niveau de satisfaction),
 ni importer un PEI, ni creer d'autres comptes — ces actions sont reservees a l'enseignant et refusees par
-l'API (403) meme si elles etaient tentees hors de l'interface.
+l'API (403) meme si elles etaient tentees hors de l'interface. (L'ancienne case a cocher "objectif atteint
+aujourd'hui", que l'EA pouvait basculer independamment du niveau de satisfaction, a ete retiree — elle
+faisait doublon avec le badge de statut et son etiquette "aujourd'hui" ne correspondait pas a son
+comportement reel, qui ne se reinitialisait jamais.)
 
 Le mot de passe est hache avec `bcrypt` (12 rounds) avant d'etre stocke — jamais en clair. La session
 repose sur un cookie httpOnly (non lisible en JavaScript) et se **prolonge a chaque requete** ; sans

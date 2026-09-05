@@ -108,7 +108,6 @@ function toGoalDTO(g) {
   return {
     id: g.id,
     label: g.label,
-    done: !!g.done,
     status: g.status,
     statusHistory: getStatusHistoryForGoal.all(g.id),
     strategies: getStrategiesForGoal.all(g.id),
@@ -490,7 +489,7 @@ app.post('/api/students/:id/goals', requireRole('enseignant'), (req, res) => {
 
   const id = randomUUID()
   const position = getGoalsForStudent.all(req.params.id).length
-  db.prepare('INSERT INTO goals (id, student_id, label, done, status, position) VALUES (?, ?, ?, 0, ?, ?)').run(
+  db.prepare('INSERT INTO goals (id, student_id, label, status, position) VALUES (?, ?, ?, ?, ?)').run(
     id,
     req.params.id,
     label,
@@ -502,23 +501,15 @@ app.post('/api/students/:id/goals', requireRole('enseignant'), (req, res) => {
   res.status(201).json(toGoalDTO(goal))
 })
 
-app.patch('/api/goals/:goalId', (req, res) => {
-  // Cocher/décocher (done) est ouvert à l'EA ; changer le texte (label) ou le
-  // niveau de satisfaction (status) est réservé à l'enseignant, d'où la
-  // vérification de rôle au cas par cas ici plutôt qu'un requireRole global.
-  if (
-    (req.body.label !== undefined || req.body.status !== undefined) &&
-    req.session.role !== 'enseignant'
-  ) {
-    return res.status(403).json({ error: "Seul l'enseignant peut modifier le texte ou le niveau d'un objectif." })
-  }
-
+// Modifier le texte ou le niveau de satisfaction d'un objectif est réservé à
+// l'enseignant. Le suivi quotidien de l'EA se fait via les notes, pas via cet
+// objectif directement (l'ancienne case à cocher "done", redondante avec le
+// niveau de satisfaction, a été retirée).
+app.patch('/api/goals/:goalId', requireRole('enseignant'), (req, res) => {
   const goal = db.prepare('SELECT * FROM goals WHERE id = ?').get(req.params.goalId)
   if (!goal) return notFound(res, 'Objectif')
 
   const label = req.body.label !== undefined ? req.body.label.trim() : goal.label
-  const done = req.body.done !== undefined ? (req.body.done ? 1 : 0) : goal.done
-
   if (!label) return res.status(400).json({ error: "L'objectif ne peut pas être vide" })
 
   let status = goal.status
@@ -529,12 +520,7 @@ app.patch('/api/goals/:goalId', (req, res) => {
     status = req.body.status
   }
 
-  db.prepare('UPDATE goals SET label = ?, done = ?, status = ? WHERE id = ?').run(
-    label,
-    done,
-    status,
-    req.params.goalId
-  )
+  db.prepare('UPDATE goals SET label = ?, status = ? WHERE id = ?').run(label, status, req.params.goalId)
 
   if (status !== goal.status) {
     insertGoalStatusHistory.run(req.params.goalId, status, req.session.username || null)
@@ -926,7 +912,6 @@ app.get('/api/backup/export', requireRole('enseignant'), (req, res) => {
       narrativeReport: row.narrative_report,
       goals: getGoalsForStudent.all(row.id).map((g) => ({
         label: g.label,
-        done: !!g.done,
         status: g.status,
         strategies: getStrategiesForGoal.all(g.id).map(({ label, category }) => ({ label, category })),
       })),
@@ -991,7 +976,7 @@ app.post('/api/backup/restore', requireRole('enseignant'), (req, res) => {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     const insertGoal = db.prepare(
-      'INSERT INTO goals (id, student_id, label, done, status, position) VALUES (?, ?, ?, ?, ?, ?)'
+      'INSERT INTO goals (id, student_id, label, status, position) VALUES (?, ?, ?, ?, ?)'
     )
     const insertWeek = db.prepare('INSERT INTO weekly_rate (student_id, week, pct) VALUES (?, ?, ?)')
     const insertNote = db.prepare('INSERT INTO notes (student_id, date, text) VALUES (?, ?, ?)')
@@ -1056,7 +1041,9 @@ app.post('/api/backup/restore', requireRole('enseignant'), (req, res) => {
           if (!g || typeof g.label !== 'string' || !g.label.trim()) return
           const status = GOAL_STATUSES.includes(g.status) ? g.status : 'non_atteint'
           const goalId = randomUUID()
-          insertGoal.run(goalId, studentId, g.label.trim(), g.done ? 1 : 0, status, i)
+          // g.done (ancienne case a cocher retiree) est ignore s'il est present
+          // dans une sauvegarde plus ancienne — compatibilite en lecture seule.
+          insertGoal.run(goalId, studentId, g.label.trim(), status, i)
           insertGoalStatusHistory.run(goalId, status, null)
           goalIdByLabel.set(g.label.trim(), goalId)
 

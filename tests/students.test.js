@@ -138,15 +138,10 @@ describe('objectifs — droits partages entre enseignant et EA', () => {
     expect(eaRes.status).toBe(403)
   })
 
-  it("l'EA peut cocher/decocher un objectif (done)", async () => {
+  it("l'EA ne peut pas modifier un objectif du tout, meme sans rien changer (PATCH reserve a l'enseignant)", async () => {
     const goal = await createGoal()
-    const res = await fetch(
-      `${baseUrl}/api/goals/${goal.id}`,
-      authed(eaCookie, { method: 'PATCH', body: JSON.stringify({ done: true }) })
-    )
-    const body = await res.json()
-    expect(res.status).toBe(200)
-    expect(body.done).toBe(true)
+    const res = await fetch(`${baseUrl}/api/goals/${goal.id}`, authed(eaCookie, { method: 'PATCH', body: JSON.stringify({}) }))
+    expect(res.status).toBe(403)
   })
 
   it("l'EA ne peut pas modifier le texte d'un objectif", async () => {

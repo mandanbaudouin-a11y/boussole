@@ -121,17 +121,6 @@ export default function App() {
     authStatus === 'authenticated'
   )
 
-  const toggleGoal = withErrorHandling(async (studentId, goalId) => {
-    const student = students.find((s) => s.id === studentId)
-    const goal = student.goals.find((g) => g.id === goalId)
-    const updated = await api.updateGoal(goalId, { done: !goal.done })
-    setStudents((prev) =>
-      prev.map((s) =>
-        s.id !== studentId ? s : { ...s, goals: s.goals.map((g) => (g.id === goalId ? updated : g)) }
-      )
-    )
-  })
-
   const addGoal = withErrorHandling(async (studentId, label) => {
     const goal = await api.createGoal(studentId, label)
     setStudents((prev) => prev.map((s) => (s.id !== studentId ? s : { ...s, goals: [...s.goals, goal] })))
@@ -423,7 +412,6 @@ export default function App() {
                 : null
             }
             positionLabel={activeStudentIndex >= 0 ? `${activeStudentIndex + 1} / ${students.length}` : null}
-            onToggleGoal={toggleGoal}
             onAddGoal={addGoal}
             onEditGoal={editGoal}
             onRemoveGoal={removeGoal}

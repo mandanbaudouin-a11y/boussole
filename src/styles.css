@@ -340,7 +340,6 @@ body {
 }
 
 .goal-label { flex: 1; }
-.goal-label.done { color: var(--ink-soft); }
 
 /* ---------- Statut de l'objectif (niveau de satisfaction) ---------- */
 .status-badge {
