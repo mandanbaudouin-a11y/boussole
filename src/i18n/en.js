@@ -70,6 +70,7 @@ export const en = {
   'Toutes les données sont stockées uniquement sur cet ordinateur — pensez à exporter une sauvegarde régulièrement.':
     'All data is stored only on this computer — remember to export a backup regularly.',
   'Aucun élève pour le moment': 'No students yet',
+  'Aucun élève pour le moment.': 'No students yet.',
   "Créez une première fiche pour commencer le suivi d'un PEI, ou importez un document existant.":
     "Create a first student to start tracking an IEP, or import an existing document.",
   'Mes élèves': 'My students',
@@ -183,6 +184,8 @@ export const en = {
   '+ Ajouter une étape': '+ Add a step',
   'Responsable : {name}': 'Responsible: {name}',
   'Délai prévu : {date}': 'Target date: {date}',
+  'Délai prévu': 'Target date',
+  'Objectifs atteints': 'Goals achieved',
   Étapes: 'Steps',
   'Aucune étape ajoutée.': 'No steps added.',
 
@@ -333,6 +336,8 @@ export const en = {
   'Création...': 'Creating...',
   'Retirer la clé API {label} ? La génération par ce fournisseur sera désactivée.':
     "Remove the {label} API key? Generation with this provider will be disabled.",
+  'Clé API utilisée pour générer un brouillon de résumé de rapport ou reformuler un texte. Chaque fournisseur garde sa propre clé, stockée localement sur cet ordinateur — jamais dans les sauvegardes exportées. Un seul fournisseur est actif à la fois.':
+    'API key used to generate a draft report summary or rephrase text. Each provider keeps its own key, stored locally on this computer — never in exported backups. Only one provider is active at a time.',
   Actif: 'Active',
   'clé configurée': 'key configured',
   'aucune clé': 'no key',
