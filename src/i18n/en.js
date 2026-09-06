@@ -219,6 +219,20 @@ export const en = {
   'Régénérer un nouveau brouillon avec l\'IA ? Le texte actuel dans la zone de modification sera remplacé.':
     'Regenerate a new draft with AI? The current text in the edit box will be replaced.',
 
+  // ---------- Historique des versions du rapport ----------
+  'Historique des exports': 'Export history',
+  "Aucun export pour l'instant. Le rapport n'a jamais été exporté en PDF.":
+    "No exports yet. The report has never been exported as a PDF.",
+  'Exporté le {date}': 'Exported on {date}',
+  'par {who}': 'by {who}',
+  'Consulter': 'View',
+  'Fermer': 'Close',
+  'Version exportée le {date}': 'Version exported on {date}',
+  "Cette version est en lecture seule : elle reflète le PEI tel qu'il était au moment de l'export, pas son contenu actuel.":
+    "This version is read-only: it reflects the IEP as it was at the time of export, not its current content.",
+  "Chargement de l'historique...": 'Loading history...',
+  "Chargement de la version...": 'Loading version...',
+
   // ---------- Comptes ----------
   'Gestion des accès': 'Access management',
   'Comptes existants': 'Existing accounts',

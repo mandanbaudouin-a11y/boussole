@@ -106,6 +106,9 @@ export const api = {
     return { blob, filename }
   },
 
+  getReportVersions: (studentId) => request(`/students/${studentId}/report-versions`),
+  getReportVersion: (versionId) => request(`/report-versions/${versionId}`),
+
   downloadCombinedReportPdf: async (lang = 'fr') => {
     const res = await fetch(`/api/reports/pdf?lang=${lang}`)
     if (!res.ok) {

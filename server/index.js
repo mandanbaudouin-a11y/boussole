@@ -773,6 +773,30 @@ app.get('/api/reports/pdf', (req, res) => {
   streamCombinedReportPdf(res, dtos, reportHeaderOptions(req))
 })
 
+// Historique des versions : ouvert aux deux rôles comme l'export lui-même
+// (lecture seule). La liste ne renvoie pas le contenu complet (potentiellement
+// volumineux) ; il faut demander une version précise pour la consulter.
+app.get('/api/students/:id/report-versions', (req, res) => {
+  const student = getStudentRow.get(req.params.id)
+  if (!student) return notFound(res, 'Élève')
+  const rows = db
+    .prepare('SELECT id, exported_at AS exportedAt, exported_by AS exportedBy FROM report_versions WHERE student_id = ? ORDER BY exported_at DESC, id DESC')
+    .all(req.params.id)
+  res.json(rows)
+})
+
+app.get('/api/report-versions/:versionId', (req, res) => {
+  const row = db.prepare('SELECT * FROM report_versions WHERE id = ?').get(req.params.versionId)
+  if (!row) return notFound(res, 'Version de rapport')
+  res.json({
+    id: row.id,
+    studentId: row.student_id,
+    exportedAt: row.exported_at,
+    exportedBy: row.exported_by,
+    snapshot: JSON.parse(row.content_snapshot),
+  })
+})
+
 // ---------- Rédaction de rapport par IA ----------
 // Les clés API (une par fournisseur : Claude, Mistral) sont stockées dans des
 // fichiers locaux (server/aiConfig.js), jamais dans la base ni renvoyées au

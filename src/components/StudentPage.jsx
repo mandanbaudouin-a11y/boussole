@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { GoalRow, AddGoalRow } from './GoalList'
-import { GOAL_STATUS_LABELS, GOAL_STATUS_ICONS } from '../goalStatus'
+import { GOAL_STATUS_LABELS, GOAL_STATUS_ICONS, formatHistoryDate } from '../goalStatus'
 import { STRATEGY_CATEGORY_LABELS } from '../strategyCategories'
 import { reviewDaysLabel } from '../reviewDate'
 import {
@@ -1118,10 +1118,160 @@ function ReportSummary({ student, canEdit, onSave }) {
   )
 }
 
+// Consultation en lecture seule d'une version passée du rapport, à partir du
+// content_snapshot enregistré au moment de l'export — jamais du contenu
+// actuel de l'élève, qui a pu changer depuis (le PEI reste un document vivant).
+function ReportVersionViewer({ versionId, onClose }) {
+  const { t } = useLanguage()
+  const [version, setVersion] = useState(null)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    api.getReportVersion(versionId).then(
+      (v) => { if (!cancelled) setVersion(v) },
+      (err) => { if (!cancelled) setError(err.message) }
+    )
+    return () => { cancelled = true }
+  }, [versionId])
+
+  const snapshot = version?.snapshot
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-panel" style={{ maxWidth: 720 }} onClick={(e) => e.stopPropagation()}>
+        {error && <div className="alert alert-urgent">{error}</div>}
+        {!snapshot && !error && <p>{t('Chargement de la version...')}</p>}
+        {snapshot && (
+          <>
+            <div className="alert alert-warning" style={{ marginBottom: 16 }}>
+              {t("Cette version est en lecture seule : elle reflète le PEI tel qu'il était au moment de l'export, pas son contenu actuel.")}
+            </div>
+
+            <p className="report-header-date" style={{ marginBottom: 4 }}>
+              {t('Version exportée le {date}', { date: formatHistoryDate(version.exportedAt) })}
+              {version.exportedBy && ` — ${t('par {who}', { who: version.exportedBy })}`}
+            </p>
+            <h2 className="report-title">{snapshot.name} &mdash; {snapshot.grade}</h2>
+
+            {snapshot.forces && (
+              <>
+                <p className="report-section-title">{t('Forces')}</p>
+                <p className="report-body">{snapshot.forces}</p>
+              </>
+            )}
+            {snapshot.besoins && (
+              <>
+                <p className="report-section-title">{t('Besoins')}</p>
+                <p className="report-body">{snapshot.besoins}</p>
+              </>
+            )}
+
+            <p className="report-section-title">{t('Objectifs suivis')}</p>
+            {snapshot.goals.map((goal) => (
+              <div className="report-goal-block" key={goal.id}>
+                <div className="report-goal-line">
+                  <span>{goal.label}</span>
+                  <span className={`status-badge status-${goal.status}`}>
+                    <span className="status-icon">{GOAL_STATUS_ICONS[goal.status]}</span>
+                    {t(GOAL_STATUS_LABELS[goal.status])}
+                  </span>
+                </div>
+              </div>
+            ))}
+
+            {snapshot.adaptations.length > 0 && (
+              <>
+                <p className="report-section-title">{t('Adaptations')}</p>
+                {snapshot.adaptations.map((a) => (
+                  <div className="report-goal-line" key={a.id}>
+                    <span className="week-label" style={{ width: 130 }}>{t(ADAPTATION_SUBTYPE_LABELS[a.subtype])}</span>
+                    <span style={{ flex: 1, marginLeft: 12 }}>{a.description}</span>
+                  </div>
+                ))}
+              </>
+            )}
+
+            {snapshot.modifications.length > 0 && (
+              <>
+                <p className="report-section-title">{t('Modifications')}</p>
+                {snapshot.modifications.map((m) => (
+                  <div className="report-goal-line" key={m.id}>
+                    <span className="week-label" style={{ width: 130 }}>{m.subject}</span>
+                    <span style={{ flex: 1, marginLeft: 12 }}>{m.description}</span>
+                  </div>
+                ))}
+              </>
+            )}
+
+            <p className="report-section-title">{t("Notes de l'enseignant")}</p>
+            {snapshot.notes.map((note, i) => (
+              <div className="report-goal-line" key={i}>
+                <span className="week-label" style={{ width: 60 }}>{note.date}</span>
+                <span style={{ flex: 1, marginLeft: 12 }}>{note.text}</span>
+              </div>
+            ))}
+          </>
+        )}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 22 }}>
+          <button type="button" className="btn" onClick={onClose}>{t('Fermer')}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ReportVersionsHistory({ studentId, refreshSignal }) {
+  const { t } = useLanguage()
+  const [versions, setVersions] = useState(null)
+  const [error, setError] = useState(null)
+  const [viewingId, setViewingId] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    api.getReportVersions(studentId).then(
+      (list) => { if (!cancelled) setVersions(list) },
+      (err) => { if (!cancelled) setError(err.message) }
+    )
+    return () => { cancelled = true }
+  }, [studentId, refreshSignal])
+
+  return (
+    <div className="card">
+      <div className="card-header">
+        <p className="student-name" style={{ fontSize: 15, cursor: 'default' }}>{t('Historique des exports')}</p>
+      </div>
+      {error && <div className="alert alert-urgent">{error}</div>}
+      {!versions && !error && <p style={{ color: 'var(--ink-soft)' }}>{t("Chargement de l'historique...")}</p>}
+      {versions && versions.length === 0 && (
+        <p style={{ color: 'var(--ink-soft)' }}>{t("Aucun export pour l'instant. Le rapport n'a jamais été exporté en PDF.")}</p>
+      )}
+      {versions && versions.length > 0 && (
+        <div className="status-history-list">
+          {versions.map((v) => (
+            <div className="status-history-row" key={v.id} style={{ justifyContent: 'space-between' }}>
+              <span>
+                {t('Exporté le {date}', { date: formatHistoryDate(v.exportedAt) })}
+                {v.exportedBy && ` — ${t('par {who}', { who: v.exportedBy })}`}
+              </span>
+              <button type="button" className="status-history-toggle" onClick={() => setViewingId(v.id)}>
+                {t('Consulter')}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      {viewingId && <ReportVersionViewer versionId={viewingId} onClose={() => setViewingId(null)} />}
+    </div>
+  )
+}
+
 function RapportTab({ student, canEdit, onSaveNarrativeReport }) {
   const { t, lang } = useLanguage()
   const [exportingPdf, setExportingPdf] = useState(false)
   const [pdfError, setPdfError] = useState(null)
+  const [historyRefresh, setHistoryRefresh] = useState(0)
 
   const handleExportPdf = async () => {
     setPdfError(null)
@@ -1129,6 +1279,7 @@ function RapportTab({ student, canEdit, onSaveNarrativeReport }) {
     try {
       const { blob, filename } = await api.downloadStudentReportPdf(student.id, lang)
       triggerBlobDownload(blob, filename)
+      setHistoryRefresh((n) => n + 1)
     } catch (err) {
       setPdfError(err.message)
     } finally {
@@ -1224,6 +1375,8 @@ function RapportTab({ student, canEdit, onSaveNarrativeReport }) {
           </span>
         </div>
       </div>
+
+      <ReportVersionsHistory studentId={student.id} refreshSignal={historyRefresh} />
     </div>
   )
 }
