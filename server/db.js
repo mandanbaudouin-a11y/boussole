@@ -367,6 +367,30 @@ if (!userColumns.includes('is_owner')) {
   }
 }
 
+// Migration : tracabilite des contributions — savoir qui a modifie quoi et
+// quand, utile des que deux comptes (titulaire + ressource assignee)
+// collaborent sur le meme eleve. NULL = jamais modifie depuis l'ajout de
+// cette fonctionnalite (aucun backfill : pas d'auteur a inventer pour les
+// donnees existantes).
+if (!studentColumns.includes('modified_by')) {
+  db.exec('ALTER TABLE students ADD COLUMN modified_by TEXT')
+  db.exec('ALTER TABLE students ADD COLUMN modified_at TEXT')
+}
+if (!goalColumns.includes('modified_by')) {
+  db.exec('ALTER TABLE goals ADD COLUMN modified_by TEXT')
+  db.exec('ALTER TABLE goals ADD COLUMN modified_at TEXT')
+}
+const adaptationsColumns = db.prepare('PRAGMA table_info(adaptations)').all().map((c) => c.name)
+if (!adaptationsColumns.includes('modified_by')) {
+  db.exec('ALTER TABLE adaptations ADD COLUMN modified_by TEXT')
+  db.exec('ALTER TABLE adaptations ADD COLUMN modified_at TEXT')
+}
+const modificationsColumns = db.prepare('PRAGMA table_info(modifications)').all().map((c) => c.name)
+if (!modificationsColumns.includes('modified_by')) {
+  db.exec('ALTER TABLE modifications ADD COLUMN modified_by TEXT')
+  db.exec('ALTER TABLE modifications ADD COLUMN modified_at TEXT')
+}
+
 const studentCount = db.prepare('SELECT COUNT(*) AS n FROM students').get().n
 
 if (studentCount === 0) {

@@ -88,14 +88,15 @@ const getStrategiesForGoal = db.prepare(
   'SELECT id, label, category FROM goal_strategies WHERE goal_id = ? ORDER BY position ASC, rowid ASC'
 )
 const getAdaptationsForStudent = db.prepare(`
-  SELECT a.id, a.subtype, a.description, a.goal_id AS goalId, g.label AS goalLabel
+  SELECT a.id, a.subtype, a.description, a.goal_id AS goalId, g.label AS goalLabel,
+         a.modified_by, a.modified_at
   FROM adaptations a
   LEFT JOIN goals g ON g.id = a.goal_id
   WHERE a.student_id = ?
   ORDER BY a.position ASC, a.rowid ASC
 `)
 const getModificationsForStudent = db.prepare(
-  'SELECT id, type, subject, description FROM modifications WHERE student_id = ? ORDER BY position ASC, rowid ASC'
+  'SELECT id, type, subject, description, modified_by, modified_at FROM modifications WHERE student_id = ? ORDER BY position ASC, rowid ASC'
 )
 const getTransitionGoalsForStudent = db.prepare(
   `SELECT id, description, responsible, target_date AS targetDate, community_resources AS communityResources
@@ -107,6 +108,26 @@ const getTransitionStepsForGoal = db.prepare(
 const insertReportVersion = db.prepare(
   'INSERT INTO report_versions (student_id, exported_by, content_snapshot) VALUES (?, ?, ?)'
 )
+
+// ---------- Traçabilité des contributions ----------
+// modified_by stocke un id utilisateur (voir migrations dans server/db.js) ;
+// l'affichage résout toujours le nom complet ici plutôt que par une jointure
+// SQL à chaque requête — plus simple à appliquer uniformément partout où un
+// modified_by est renvoyé au client (élève, objectif, adaptation,
+// modification, historique de statut). Repli sur la valeur brute si elle ne
+// correspond à aucun compte (ex. ancien format username dans
+// goal_status_history.changed_by, avant cette fonctionnalité).
+const getUserNameStmt = db.prepare('SELECT nom_complet, username FROM users WHERE id = ?')
+function getUserName(userId) {
+  if (!userId) return null
+  const row = getUserNameStmt.get(userId)
+  return row ? row.nom_complet || row.username : userId
+}
+
+function withModifiedBy(row) {
+  const { modified_by, modified_at, ...rest } = row
+  return { ...rest, modifiedBy: getUserName(modified_by), modifiedAt: modified_at }
+}
 
 // ---------- Portée des données (collaboration enseignant-ressource) ----------
 // Un compte enseignant voit toujours ses propres élèves, plus ceux de tout
@@ -210,8 +231,10 @@ function toGoalDTO(g) {
     id: g.id,
     label: g.label,
     status: g.status,
-    statusHistory: getStatusHistoryForGoal.all(g.id),
+    statusHistory: getStatusHistoryForGoal.all(g.id).map((h) => ({ ...h, changed_by: getUserName(h.changed_by) })),
     strategies: getStrategiesForGoal.all(g.id),
+    modifiedBy: getUserName(g.modified_by),
+    modifiedAt: g.modified_at,
   }
 }
 
@@ -263,8 +286,8 @@ function toStudentDTO(row) {
     age: ageFromBirthdate(row.birthdate),
     forces: row.forces,
     besoins: row.besoins,
-    adaptations: getAdaptationsForStudent.all(row.id),
-    modifications: getModificationsForStudent.all(row.id),
+    adaptations: getAdaptationsForStudent.all(row.id).map(withModifiedBy),
+    modifications: getModificationsForStudent.all(row.id).map(withModifiedBy),
     consultationDate: row.consultation_date,
     consultationMethod: row.consultation_method,
     copyDeliveryDate: row.copy_delivery_date,
@@ -278,6 +301,8 @@ function toStudentDTO(row) {
     notes: getNotesForStudent.all(row.id),
     narrativeReport: row.narrative_report,
     narrativeReportUpdatedAt: row.narrative_report_updated_at,
+    modifiedBy: getUserName(row.modified_by),
+    modifiedAt: row.modified_at,
   }
 }
 
@@ -581,12 +606,15 @@ app.post('/api/students', requireRole('enseignant'), (req, res) => {
     return res.status(400).json({ error: 'Date de naissance invalide.' })
   }
   const id = randomUUID()
-  db.prepare('INSERT INTO students (id, name, grade, next_review_date, birthdate, teacher_id) VALUES (?, ?, ?, ?, ?, ?)').run(
+  db.prepare(
+    'INSERT INTO students (id, name, grade, next_review_date, birthdate, teacher_id, modified_by, modified_at) VALUES (?, ?, ?, ?, ?, ?, ?, datetime(\'now\'))'
+  ).run(
     id,
     name.trim(),
     grade.trim(),
     DATE_RE.test(nextReviewDate) ? nextReviewDate : defaultNextReviewDate(),
     birthdateResult.value,
+    req.session.userId,
     req.session.userId
   )
   res.status(201).json(toStudentDTO(getStudentRow.get(id)))
@@ -682,7 +710,7 @@ app.patch('/api/students/:id', requireRole('enseignant'), (req, res) => {
   db.prepare(
     `UPDATE students SET name = ?, grade = ?, next_review_date = ?, birthdate = ?, forces = ?, besoins = ?,
      consultation_date = ?, consultation_method = ?, copy_delivery_date = ?, acknowledgment_status = ?,
-     applicable_transition = ?, delivered_version_id = ? WHERE id = ?`
+     applicable_transition = ?, delivered_version_id = ?, modified_by = ?, modified_at = datetime('now') WHERE id = ?`
   ).run(
     name,
     grade,
@@ -696,6 +724,7 @@ app.patch('/api/students/:id', requireRole('enseignant'), (req, res) => {
     acknowledgmentStatus,
     applicableTransition,
     deliveredVersionId,
+    req.session.userId,
     req.params.id
   )
   res.json(toStudentDTO(getStudentRow.get(req.params.id)))
@@ -719,14 +748,10 @@ app.post('/api/students/:id/goals', requireRole('enseignant'), (req, res) => {
 
   const id = randomUUID()
   const position = getGoalsForStudent.all(req.params.id).length
-  db.prepare('INSERT INTO goals (id, student_id, label, status, position) VALUES (?, ?, ?, ?, ?)').run(
-    id,
-    req.params.id,
-    label,
-    'non_atteint',
-    position
-  )
-  insertGoalStatusHistory.run(id, 'non_atteint', req.session.username || null)
+  db.prepare(
+    "INSERT INTO goals (id, student_id, label, status, position, modified_by, modified_at) VALUES (?, ?, ?, ?, ?, ?, datetime('now'))"
+  ).run(id, req.params.id, label, 'non_atteint', position, req.session.userId)
+  insertGoalStatusHistory.run(id, 'non_atteint', req.session.userId)
   const goal = db.prepare('SELECT * FROM goals WHERE id = ?').get(id)
   res.status(201).json(toGoalDTO(goal))
 })
@@ -750,10 +775,15 @@ app.patch('/api/goals/:goalId', requireRole('enseignant'), (req, res) => {
     status = req.body.status
   }
 
-  db.prepare('UPDATE goals SET label = ?, status = ? WHERE id = ?').run(label, status, req.params.goalId)
+  db.prepare("UPDATE goals SET label = ?, status = ?, modified_by = ?, modified_at = datetime('now') WHERE id = ?").run(
+    label,
+    status,
+    req.session.userId,
+    req.params.goalId
+  )
 
   if (status !== goal.status) {
-    insertGoalStatusHistory.run(req.params.goalId, status, req.session.username || null)
+    insertGoalStatusHistory.run(req.params.goalId, status, req.session.userId)
   }
 
   const updated = db.prepare('SELECT * FROM goals WHERE id = ?').get(req.params.goalId)
@@ -837,10 +867,10 @@ app.post('/api/students/:id/adaptations', requireRole('enseignant'), (req, res) 
   const id = randomUUID()
   const position = getAdaptationsForStudent.all(req.params.id).length
   db.prepare(
-    'INSERT INTO adaptations (id, student_id, goal_id, subtype, description, position) VALUES (?, ?, ?, ?, ?, ?)'
-  ).run(id, req.params.id, goalId, req.body.subtype, description, position)
+    "INSERT INTO adaptations (id, student_id, goal_id, subtype, description, position, modified_by, modified_at) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))"
+  ).run(id, req.params.id, goalId, req.body.subtype, description, position, req.session.userId)
 
-  res.status(201).json(getAdaptationsForStudent.all(req.params.id).find((a) => a.id === id))
+  res.status(201).json(withModifiedBy(getAdaptationsForStudent.all(req.params.id).find((a) => a.id === id)))
 })
 
 app.delete('/api/adaptations/:adaptationId', requireRole('enseignant'), (req, res) => {
@@ -865,10 +895,10 @@ app.post('/api/students/:id/modifications', requireRole('enseignant'), (req, res
   const id = randomUUID()
   const position = getModificationsForStudent.all(req.params.id).length
   db.prepare(
-    'INSERT INTO modifications (id, student_id, type, subject, description, position) VALUES (?, ?, ?, ?, ?, ?)'
-  ).run(id, req.params.id, req.body.type, subject, description, position)
+    "INSERT INTO modifications (id, student_id, type, subject, description, position, modified_by, modified_at) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))"
+  ).run(id, req.params.id, req.body.type, subject, description, position, req.session.userId)
 
-  res.status(201).json({ id, type: req.body.type, subject, description })
+  res.status(201).json(withModifiedBy(getModificationsForStudent.all(req.params.id).find((m) => m.id === id)))
 })
 
 app.delete('/api/modifications/:modificationId', requireRole('enseignant'), (req, res) => {
@@ -1251,11 +1281,11 @@ app.post('/api/backup/restore', requireRole('enseignant'), (req, res) => {
       `INSERT INTO students
        (id, name, grade, next_review_date, birthdate, forces, besoins,
         consultation_date, consultation_method, copy_delivery_date, acknowledgment_status, applicable_transition,
-        narrative_report, narrative_report_updated_at, teacher_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        narrative_report, narrative_report_updated_at, teacher_id, modified_by, modified_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
     )
     const insertGoal = db.prepare(
-      'INSERT INTO goals (id, student_id, label, status, position) VALUES (?, ?, ?, ?, ?)'
+      "INSERT INTO goals (id, student_id, label, status, position, modified_by, modified_at) VALUES (?, ?, ?, ?, ?, ?, datetime('now'))"
     )
     const insertWeek = db.prepare('INSERT INTO weekly_rate (student_id, week, pct) VALUES (?, ?, ?)')
     const insertNote = db.prepare('INSERT INTO notes (student_id, date, text) VALUES (?, ?, ?)')
@@ -1263,10 +1293,10 @@ app.post('/api/backup/restore', requireRole('enseignant'), (req, res) => {
       'INSERT INTO goal_strategies (id, goal_id, label, category, position) VALUES (?, ?, ?, ?, ?)'
     )
     const insertAdaptation = db.prepare(
-      'INSERT INTO adaptations (id, student_id, goal_id, subtype, description, position) VALUES (?, ?, ?, ?, ?, ?)'
+      "INSERT INTO adaptations (id, student_id, goal_id, subtype, description, position, modified_by, modified_at) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))"
     )
     const insertModification = db.prepare(
-      'INSERT INTO modifications (id, student_id, type, subject, description, position) VALUES (?, ?, ?, ?, ?, ?)'
+      "INSERT INTO modifications (id, student_id, type, subject, description, position, modified_by, modified_at) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))"
     )
     const insertTransitionGoal = db.prepare(
       `INSERT INTO transition_goals (id, student_id, description, responsible, target_date, community_resources, position)
@@ -1319,6 +1349,7 @@ app.post('/api/backup/restore', requireRole('enseignant'), (req, res) => {
           s.applicableTransition ? 1 : 0,
           narrativeReport,
           narrativeReport ? new Date().toISOString() : null,
+          req.session.userId,
           req.session.userId
         )
 
@@ -1329,8 +1360,8 @@ app.post('/api/backup/restore', requireRole('enseignant'), (req, res) => {
           const goalId = randomUUID()
           // g.done (ancienne case a cocher retiree) est ignore s'il est present
           // dans une sauvegarde plus ancienne — compatibilite en lecture seule.
-          insertGoal.run(goalId, studentId, g.label.trim(), status, i)
-          insertGoalStatusHistory.run(goalId, status, null)
+          insertGoal.run(goalId, studentId, g.label.trim(), status, i, req.session.userId)
+          insertGoalStatusHistory.run(goalId, status, req.session.userId)
           goalIdByLabel.set(g.label.trim(), goalId)
 
           ;(Array.isArray(g.strategies) ? g.strategies : []).forEach((st, j) => {
@@ -1343,13 +1374,13 @@ app.post('/api/backup/restore', requireRole('enseignant'), (req, res) => {
           if (!a || typeof a.description !== 'string' || !a.description.trim()) return
           const subtype = ADAPTATION_SUBTYPES.includes(a.subtype) ? a.subtype : 'pedagogique'
           const goalId = typeof a.goalLabel === 'string' ? goalIdByLabel.get(a.goalLabel) || null : null
-          insertAdaptation.run(randomUUID(), studentId, goalId, subtype, a.description.trim(), i)
+          insertAdaptation.run(randomUUID(), studentId, goalId, subtype, a.description.trim(), i, req.session.userId)
         })
         ;(Array.isArray(s.modifications) ? s.modifications : []).forEach((m, i) => {
           if (!m || typeof m.description !== 'string' || !m.description.trim()) return
           if (typeof m.subject !== 'string' || !m.subject.trim()) return
           const type = MODIFICATION_TYPES.includes(m.type) ? m.type : 'complexite_ajustee'
-          insertModification.run(randomUUID(), studentId, type, m.subject.trim(), m.description.trim(), i)
+          insertModification.run(randomUUID(), studentId, type, m.subject.trim(), m.description.trim(), i, req.session.userId)
         })
         ;(Array.isArray(s.transitionGoals) ? s.transitionGoals : []).forEach((tg, i) => {
           if (!tg || typeof tg.description !== 'string' || !tg.description.trim()) return

@@ -244,6 +244,11 @@ export function GoalRow({
         onAddStrategy={onAddStrategy}
         onRemoveStrategy={onRemoveStrategy}
       />
+      {goal.modifiedBy && (
+        <p style={{ fontSize: 11, color: 'var(--ink-soft)', margin: '0 0 8px' }}>
+          {t('Modifié par {name}, {date}', { name: goal.modifiedBy, date: formatHistoryDate(goal.modifiedAt) })}
+        </p>
+      )}
     </div>
   )
 }

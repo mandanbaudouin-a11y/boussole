@@ -145,7 +145,7 @@ function AddNoteForm({ studentId, onAddNote }) {
   )
 }
 
-function EditableTextSection({ title, value, canEdit, studentId, field, suggestions = [], onSave }) {
+function EditableTextSection({ title, value, canEdit, studentId, field, suggestions = [], onSave, modifiedBy, modifiedAt }) {
   const { t, lang } = useLanguage()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
@@ -251,6 +251,11 @@ function EditableTextSection({ title, value, canEdit, studentId, field, suggesti
       ) : (
         <div>
           <p className="report-body">{value && value.trim() ? value : t('Aucune information enregistrée.')}</p>
+          {value && value.trim() && modifiedBy && (
+            <p style={{ fontSize: 11, color: 'var(--ink-soft)', margin: '4px 0 0' }}>
+              {t('Modifié par {name}, {date}', { name: modifiedBy, date: formatHistoryDate(modifiedAt) })}
+            </p>
+          )}
           {canEdit && (
             <button className="btn" style={{ marginTop: 8 }} onClick={startEditing}>{t('Modifier')}</button>
           )}
@@ -305,6 +310,8 @@ function ProfilTab({ student, canEdit, onEditStudent, forcesBesoinsLibrary }) {
         field="forces"
         suggestions={forcesBesoinsLibrary.filter((e) => e.field === 'forces')}
         onSave={(text) => onEditStudent(student.id, { forces: text })}
+        modifiedBy={student.modifiedBy}
+        modifiedAt={student.modifiedAt}
       />
       <EditableTextSection
         title={t('Besoins')}
@@ -314,6 +321,8 @@ function ProfilTab({ student, canEdit, onEditStudent, forcesBesoinsLibrary }) {
         field="besoins"
         suggestions={forcesBesoinsLibrary.filter((e) => e.field === 'besoins')}
         onSave={(text) => onEditStudent(student.id, { besoins: text })}
+        modifiedBy={student.modifiedBy}
+        modifiedAt={student.modifiedAt}
       />
     </div>
   )
@@ -505,6 +514,11 @@ function AdaptationRow({ adaptation, canEdit, onRemove }) {
         {adaptation.goalLabel && (
           <p className="page-date" style={{ margin: '4px 0 0' }}>{t('Liée à : {label}', { label: adaptation.goalLabel })}</p>
         )}
+        {adaptation.modifiedBy && (
+          <p style={{ fontSize: 11, color: 'var(--ink-soft)', margin: '4px 0 0' }}>
+            {t('Modifié par {name}, {date}', { name: adaptation.modifiedBy, date: formatHistoryDate(adaptation.modifiedAt) })}
+          </p>
+        )}
       </div>
       {canEdit && (
         <button
@@ -572,6 +586,11 @@ function ModificationRow({ modification, canEdit, onRemove }) {
         </span>
         <span className="goal-label">{modification.description}</span>
         <p className="page-date" style={{ margin: '4px 0 0' }}>{t('Matière : {subject}', { subject: modification.subject })}</p>
+        {modification.modifiedBy && (
+          <p style={{ fontSize: 11, color: 'var(--ink-soft)', margin: '4px 0 0' }}>
+            {t('Modifié par {name}, {date}', { name: modification.modifiedBy, date: formatHistoryDate(modification.modifiedAt) })}
+          </p>
+        )}
       </div>
       {canEdit && (
         <button

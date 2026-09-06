@@ -157,6 +157,7 @@ export const en = {
   'Retirer': 'Remove',
   Supprimer: 'Delete',
   'Niveau de satisfaction': 'Status level',
+  'Modifié par {name}, {date}': 'Modified by {name}, {date}',
 
   // ---------- Adaptations / modifications ----------
   Adaptations: 'Accommodations',
