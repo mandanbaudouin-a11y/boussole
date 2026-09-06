@@ -309,6 +309,16 @@ if (!studentColumns.includes('applicable_transition')) {
   db.exec('ALTER TABLE students ADD COLUMN applicable_transition INTEGER NOT NULL DEFAULT 0')
 }
 
+// Migration : associe la remise de copie (copy_delivery_date) à une version
+// precise de l'historique des rapports — repond a "quelle version le parent
+// a-t-il recue ?". NULL = aucune version associee (remise non enregistree,
+// ou remise anterieure a l'existence de cette fonctionnalite). Pas de
+// contrainte REFERENCES declaree ici (coherent avec les autres migrations
+// ALTER de ce fichier) ; la validite est verifiee cote application.
+if (!studentColumns.includes('delivered_version_id')) {
+  db.exec('ALTER TABLE students ADD COLUMN delivered_version_id INTEGER')
+}
+
 const studentCount = db.prepare('SELECT COUNT(*) AS n FROM students').get().n
 
 if (studentCount === 0) {

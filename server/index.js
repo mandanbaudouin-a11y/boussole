@@ -171,6 +171,7 @@ function toStudentDTO(row) {
     consultationMethod: row.consultation_method,
     copyDeliveryDate: row.copy_delivery_date,
     acknowledgmentStatus: row.acknowledgment_status,
+    deliveredVersionId: row.delivered_version_id,
     copyDeliveryOverdue: isCopyDeliveryOverdue(row.consultation_date, row.copy_delivery_date),
     applicableTransition: !!row.applicable_transition,
     transitionGoals: getTransitionGoalsForStudent.all(row.id).map(toTransitionGoalDTO),
@@ -449,6 +450,27 @@ app.patch('/api/students/:id', requireRole('enseignant'), (req, res) => {
   const applicableTransition =
     req.body.applicableTransition !== undefined ? (req.body.applicableTransition ? 1 : 0) : existing.applicable_transition
 
+  // Version du rapport associee a la remise de copie (spec historique, point
+  // 3) : repond a "quelle version le parent a-t-il recue ?". Doit appartenir
+  // a cet eleve. Effacee automatiquement si la date de remise est retiree.
+  let deliveredVersionId = existing.delivered_version_id
+  if (req.body.deliveredVersionId !== undefined) {
+    if (req.body.deliveredVersionId === null || req.body.deliveredVersionId === '') {
+      deliveredVersionId = null
+    } else {
+      const versionRow = db
+        .prepare('SELECT id FROM report_versions WHERE id = ? AND student_id = ?')
+        .get(req.body.deliveredVersionId, req.params.id)
+      if (!versionRow) {
+        return res.status(400).json({ error: 'Version de rapport invalide.' })
+      }
+      deliveredVersionId = versionRow.id
+    }
+  }
+  if (!copyDeliveryDate) {
+    deliveredVersionId = null
+  }
+
   if (!name || !grade) {
     return res.status(400).json({ error: "Le nom et le niveau sont requis" })
   }
@@ -456,7 +478,7 @@ app.patch('/api/students/:id', requireRole('enseignant'), (req, res) => {
   db.prepare(
     `UPDATE students SET name = ?, grade = ?, next_review_date = ?, birthdate = ?, forces = ?, besoins = ?,
      consultation_date = ?, consultation_method = ?, copy_delivery_date = ?, acknowledgment_status = ?,
-     applicable_transition = ? WHERE id = ?`
+     applicable_transition = ?, delivered_version_id = ? WHERE id = ?`
   ).run(
     name,
     grade,
@@ -469,6 +491,7 @@ app.patch('/api/students/:id', requireRole('enseignant'), (req, res) => {
     copyDeliveryDate,
     acknowledgmentStatus,
     applicableTransition,
+    deliveredVersionId,
     req.params.id
   )
   res.json(toStudentDTO(getStudentRow.get(req.params.id)))

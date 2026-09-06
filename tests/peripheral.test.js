@@ -312,7 +312,53 @@ describe('historique de versions du rapport PEI', () => {
     await fetch(`${baseUrl}/api/students/${studentId}/report.pdf`, authed(teacherCookie))
     await fetch(`${baseUrl}/api/students/${studentId}/report.pdf`, authed(teacherCookie))
 
-    const versions = db.prepare('SELECT * FROM report_versions WHERE student_id = ?').all(studentId)
-    expect(versions).toHaveLength(2)
+    const versionsAccumulated = db.prepare('SELECT * FROM report_versions WHERE student_id = ?').all(studentId)
+    expect(versionsAccumulated).toHaveLength(2)
+  })
+
+  it('associe une version precise a la remise de copie', async () => {
+    db.exec('DELETE FROM report_versions')
+    await fetch(`${baseUrl}/api/students/${studentId}/report.pdf`, authed(teacherCookie))
+    const [version] = db.prepare('SELECT * FROM report_versions WHERE student_id = ?').all(studentId)
+
+    const res = await fetch(
+      `${baseUrl}/api/students/${studentId}`,
+      authed(teacherCookie, { method: 'PATCH', body: JSON.stringify({ copyDeliveryDate: '2026-09-15', deliveredVersionId: version.id }) })
+    )
+    const body = await res.json()
+    expect(res.status).toBe(200)
+    expect(body.deliveredVersionId).toBe(version.id)
+    expect(body.copyDeliveryDate).toBe('2026-09-15')
+  })
+
+  it('rejette une version qui n appartient pas a cet eleve', async () => {
+    const otherStudent = await (
+      await fetch(`${baseUrl}/api/students`, authed(teacherCookie, { method: 'POST', body: JSON.stringify({ name: 'Autre élève', grade: '1re année' }) }))
+    ).json()
+    await fetch(`${baseUrl}/api/students/${otherStudent.id}/report.pdf`, authed(teacherCookie))
+    const [otherVersion] = db.prepare('SELECT * FROM report_versions WHERE student_id = ?').all(otherStudent.id)
+
+    const res = await fetch(
+      `${baseUrl}/api/students/${studentId}`,
+      authed(teacherCookie, { method: 'PATCH', body: JSON.stringify({ copyDeliveryDate: '2026-09-15', deliveredVersionId: otherVersion.id }) })
+    )
+    expect(res.status).toBe(400)
+  })
+
+  it('efface la version associee quand la date de remise est retiree', async () => {
+    await fetch(`${baseUrl}/api/students/${studentId}/report.pdf`, authed(teacherCookie))
+    const [version] = db.prepare('SELECT * FROM report_versions WHERE student_id = ?').all(studentId)
+    await fetch(
+      `${baseUrl}/api/students/${studentId}`,
+      authed(teacherCookie, { method: 'PATCH', body: JSON.stringify({ copyDeliveryDate: '2026-09-15', deliveredVersionId: version.id }) })
+    )
+
+    const res = await fetch(
+      `${baseUrl}/api/students/${studentId}`,
+      authed(teacherCookie, { method: 'PATCH', body: JSON.stringify({ copyDeliveryDate: '' }) })
+    )
+    const body = await res.json()
+    expect(body.copyDeliveryDate).toBeNull()
+    expect(body.deliveredVersionId).toBeNull()
   })
 })

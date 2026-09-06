@@ -835,17 +835,35 @@ function ConsultationTab({ student, canEdit, onEditStudent }) {
   const [consultationMethod, setConsultationMethod] = useState('')
   const [copyDeliveryDate, setCopyDeliveryDate] = useState('')
   const [acknowledgmentStatus, setAcknowledgmentStatus] = useState('')
+  const [deliveredVersionId, setDeliveredVersionId] = useState('')
+  const [versions, setVersions] = useState([])
 
-  const startEditing = () => {
+  const startEditing = async () => {
     setConsultationDate(student.consultationDate || '')
     setConsultationMethod(student.consultationMethod || '')
     setCopyDeliveryDate(student.copyDeliveryDate || '')
     setAcknowledgmentStatus(student.acknowledgmentStatus || '')
     setEditing(true)
+    try {
+      const list = await api.getReportVersions(student.id)
+      setVersions(list)
+      // Par defaut, une remise se rattache a la version la plus recente
+      // disponible (la spec permet cette association automatique) ; le
+      // choix reste modifiable si une version anterieure a ete remise.
+      setDeliveredVersionId(String(student.deliveredVersionId || list[0]?.id || ''))
+    } catch {
+      setVersions([])
+    }
   }
 
   const save = () => {
-    onEditStudent(student.id, { consultationDate, consultationMethod, copyDeliveryDate, acknowledgmentStatus })
+    onEditStudent(student.id, {
+      consultationDate,
+      consultationMethod,
+      copyDeliveryDate,
+      acknowledgmentStatus,
+      deliveredVersionId: copyDeliveryDate ? deliveredVersionId || null : null,
+    })
     setEditing(false)
   }
 
@@ -909,6 +927,30 @@ function ConsultationTab({ student, canEdit, onEditStudent }) {
             </select>
           </label>
         </div>
+
+        {copyDeliveryDate && versions.length > 0 && (
+          <div className="form-row" style={{ flexWrap: 'wrap', marginTop: 14 }}>
+            <label style={{ ...fieldStyle, minWidth: 260 }}>
+              {t('Version du rapport remise')}
+              <select
+                className="text-input"
+                value={deliveredVersionId}
+                onChange={(e) => setDeliveredVersionId(e.target.value)}
+              >
+                <option value="">{t('—')}</option>
+                {versions.map((v) => (
+                  <option key={v.id} value={v.id}>{formatHistoryDate(v.exportedAt)}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+        )}
+
+        {copyDeliveryDate && versions.length === 0 && (
+          <p className="page-date" style={{ marginTop: 14 }}>
+            {t("Aucune version exportée à associer pour l'instant — exportez d'abord un rapport en PDF (onglet Rapport).")}
+          </p>
+        )}
 
         {student.age !== null && student.age >= 16 && (
           <p className="page-date" style={{ marginTop: 14 }}>
@@ -1222,8 +1264,8 @@ function ReportVersionViewer({ versionId, onClose }) {
   )
 }
 
-function ReportVersionsHistory({ studentId, refreshSignal }) {
-  const { t } = useLanguage()
+function ReportVersionsHistory({ studentId, refreshSignal, deliveredVersionId, copyDeliveryDate }) {
+  const { t, lang } = useLanguage()
   const [versions, setVersions] = useState(null)
   const [error, setError] = useState(null)
   const [viewingId, setViewingId] = useState(null)
@@ -1250,14 +1292,21 @@ function ReportVersionsHistory({ studentId, refreshSignal }) {
       {versions && versions.length > 0 && (
         <div className="status-history-list">
           {versions.map((v) => (
-            <div className="status-history-row" key={v.id} style={{ justifyContent: 'space-between' }}>
+            <div className="status-history-row" key={v.id} style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
               <span>
                 {t('Exporté le {date}', { date: formatHistoryDate(v.exportedAt) })}
                 {v.exportedBy && ` — ${t('par {who}', { who: v.exportedBy })}`}
               </span>
-              <button type="button" className="status-history-toggle" onClick={() => setViewingId(v.id)}>
-                {t('Consulter')}
-              </button>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {String(v.id) === String(deliveredVersionId) && (
+                  <span className="status-badge status-atteint">
+                    {t('Remis à un parent le {date}', { date: formatDate(copyDeliveryDate, lang) })}
+                  </span>
+                )}
+                <button type="button" className="status-history-toggle" onClick={() => setViewingId(v.id)}>
+                  {t('Consulter')}
+                </button>
+              </span>
             </div>
           ))}
         </div>
@@ -1376,7 +1425,12 @@ function RapportTab({ student, canEdit, onSaveNarrativeReport }) {
         </div>
       </div>
 
-      <ReportVersionsHistory studentId={student.id} refreshSignal={historyRefresh} />
+      <ReportVersionsHistory
+        studentId={student.id}
+        refreshSignal={historyRefresh}
+        deliveredVersionId={student.deliveredVersionId}
+        copyDeliveryDate={student.copyDeliveryDate}
+      />
     </div>
   )
 }

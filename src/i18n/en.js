@@ -232,6 +232,10 @@ export const en = {
     "This version is read-only: it reflects the IEP as it was at the time of export, not its current content.",
   "Chargement de l'historique...": 'Loading history...',
   "Chargement de la version...": 'Loading version...',
+  'Version du rapport remise': 'Report version delivered',
+  "Aucune version exportée à associer pour l'instant — exportez d'abord un rapport en PDF (onglet Rapport).":
+    "No exported version to link yet — export a PDF report first (Report tab).",
+  'Remis à un parent le {date}': 'Delivered to a parent on {date}',
 
   // ---------- Comptes ----------
   'Gestion des accès': 'Access management',
