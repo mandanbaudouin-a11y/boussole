@@ -35,35 +35,64 @@ qu'un fichier telecharge contienne des hachages et pour ne jamais risquer de ver
 de son propre compte.
 
 ## Authentification et roles
-Deux roles : **enseignant** (tous les droits) et **EA** (educateur/educatrice specialise-e). Au tout
-premier lancement (aucun compte enseignant en base), l'application affiche un ecran de **creation de
-compte enseignant** (nom d'utilisateur + mot de passe, 8 caracteres minimum). C'est ensuite n'importe quel
-compte enseignant qui peut creer d'autres comptes depuis l'onglet **Comptes** (visible seulement pour ce
-role) : des comptes EA, ou d'autres comptes enseignant a droits complets (ex. pour un enseignant-ressource
-qui doit consulter et modifier les memes PEI, pas seulement ajouter des notes). L'ecran de **connexion**
-propose un selecteur "Enseignant / EA" ; il doit correspondre au role reel du compte, sinon la connexion
-est refusee avec un message explicite.
+Deux roles : **enseignant** (tous les droits sur les eleves auxquels il a acces) et **EA**
+(educateur/educatrice specialise-e). Au tout premier lancement (aucun compte enseignant en base),
+l'application affiche un ecran de **creation de compte enseignant** (nom d'utilisateur + mot de passe,
+8 caracteres minimum) ; ce premier compte devient automatiquement le **compte proprietaire** de
+l'installation (voir plus bas). L'ecran de **connexion** propose un selecteur "Enseignant / EA" ; il doit
+correspondre au role reel du compte, sinon la connexion est refusee avec un message explicite.
 
-Droits de l'EA : voir tous les eleves et leurs objectifs, ajouter des notes de suivi. L'EA ne peut pas
-ajouter/supprimer des eleves, ni ajouter/modifier/supprimer les objectifs (texte, niveau de satisfaction),
-ni importer un PEI, ni creer d'autres comptes — ces actions sont reservees a l'enseignant et refusees par
-l'API (403) meme si elles etaient tentees hors de l'interface. (L'ancienne case a cocher "objectif atteint
-aujourd'hui", que l'EA pouvait basculer independamment du niveau de satisfaction, a ete retiree — elle
-faisait doublon avec le badge de statut et son etiquette "aujourd'hui" ne correspondait pas a son
-comportement reel, qui ne se reinitialisait jamais.)
+Droits de l'EA : voir les eleves du compte enseignant qui l'a cree et leurs objectifs, ajouter des notes de
+suivi. L'EA ne peut pas ajouter/supprimer des eleves, ni ajouter/modifier/supprimer les objectifs (texte,
+niveau de satisfaction), ni importer un PEI, ni creer d'autres comptes — ces actions sont reservees a
+l'enseignant et refusees par l'API (403) meme si elles etaient tentees hors de l'interface. (L'ancienne
+case a cocher "objectif atteint aujourd'hui", que l'EA pouvait basculer independamment du niveau de
+satisfaction, a ete retiree — elle faisait doublon avec le badge de statut et son etiquette "aujourd'hui"
+ne correspondait pas a son comportement reel, qui ne se reinitialisait jamais.)
 
-Un second compte enseignant a exactement les memes droits que le premier, y compris la gestion des
-comptes — il n'existe pas de role intermediaire "modifie les PEI mais pas les comptes".
+## Collaboration entre plusieurs enseignants (cloisonnement par classe)
+Un compte enseignant ne voit par defaut que ses propres eleves (ceux qu'il a crees). Pour qu'un
+enseignant-ressource (ou tout autre collaborateur) consulte et modifie les eleves d'un ou plusieurs
+enseignants titulaires, deux etapes depuis l'onglet **Comptes** (reservees au compte proprietaire, voir
+plus bas) :
+1. **Ajouter un enseignant collaborateur** — cree un second compte a droits complets (pas un compte EA).
+2. **Assignations** — donne a ce compte l'acces aux eleves d'un ou plusieurs comptes enseignant precis.
+   Prend effet immediatement, sans reconnexion, et peut etre retire a tout moment de la meme facon.
 
-## Reseau local (enseignant uniquement)
+Un eleve nouvellement cree appartient toujours a qui l'a cree : un enseignant-ressource qui ajoute un
+eleve directement en devient proprietaire (utile pour un suivi personnel hors d'une classe precise) ;
+pour l'ajouter a la classe d'un collegue, c'est ce collegue qui doit le creer lui-meme.
+
+### Compte proprietaire
+Un seul compte par installation est **proprietaire** : le tout premier compte enseignant jamais cree
+(automatique, aucune configuration requise). Lui seul peut creer/gerer d'autres comptes (EA ou
+enseignant), activer le **Reseau local** (voir plus bas) et gerer les **Assignations**. Un compte
+enseignant collaborateur garde tous ses droits sur les eleves auxquels il a acces, mais pas sur ces
+trois choses-la — un compte non-proprietaire ne voit tout simplement pas ces sections dans l'onglet
+Comptes, et l'API les refuse (403) si elles sont appelees directement.
+
+## Reseau local (compte proprietaire uniquement)
 Par defaut, le serveur n'ecoute que sur cet ordinateur (`127.0.0.1`) : aucune autre machine, meme sur le
 meme reseau Wi-Fi, ne peut y acceder. L'onglet **Comptes** propose un reglage **Reseau local** pour
-partager l'application avec un collegue de l'ecole (ex. un enseignant-ressource travaillant en
-collaboration) : une fois active, le collegue ouvre simplement l'adresse affichee
-(`http://<adresse-de-cet-ordinateur>:3001`) dans son propre navigateur, sans rien installer, et se connecte
-avec son propre compte enseignant. Le changement ne prend effet qu'au prochain demarrage de l'application
+partager l'application avec des collegues de l'ecole : une fois active, chacun ouvre simplement l'adresse
+affichee (`http://<adresse-de-cet-ordinateur>:3001`) dans son propre navigateur, sans rien installer, et se
+connecte avec son propre compte. Le changement ne prend effet qu'au prochain demarrage de l'application
 (fermer completement Repère puis le rouvrir). A n'activer que sur le reseau de confiance de l'ecole,
 jamais sur un reseau public.
+
+### Regrouper plusieurs installations existantes en une seule base partagee
+Si chaque enseignant a deja sa propre installation separee (son propre fichier de donnees), pas de nouvel
+outil a utiliser — la sauvegarde/restauration deja en place suffit :
+1. Choisir un ordinateur comme hote central (idealement un poste qui reste allume pendant les heures
+   d'ecole) et y mettre a jour Repère — ses donnees existantes restent intactes et deviennent
+   automatiquement celles du compte proprietaire.
+2. Activer **Reseau local** sur cet ordinateur.
+3. Depuis son onglet Comptes, creer un compte enseignant pour chaque autre enseignant titulaire et pour
+   l'enseignant-ressource (**Ajouter un enseignant collaborateur**).
+4. Chaque autre enseignant : depuis son ancienne installation, **Exporter une sauvegarde** ; puis se
+   connecter a l'adresse LAN de l'hote avec son nouveau compte et **Restaurer une sauvegarde** — ses
+   eleves rejoignent la base partagee, sous son propre compte.
+5. Depuis l'onglet Comptes de l'hote, assigner l'enseignant-ressource aux classes concernees.
 
 Le mot de passe est hache avec `bcrypt` (12 rounds) avant d'etre stocke — jamais en clair. La session
 repose sur un cookie httpOnly (non lisible en JavaScript) et se **prolonge a chaque requete** ; sans

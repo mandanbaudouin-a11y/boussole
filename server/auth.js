@@ -37,17 +37,27 @@ function toUserProfileDTO(row) {
     titre: row.titre,
     laipvpAcknowledged: !!row.laipvp_acknowledged,
     laipvpAcknowledgedAt: row.laipvp_acknowledged_at,
+    teacherId: row.teacher_id,
+    isOwner: !!row.is_owner,
   }
 }
 
+// Collaboration enseignant-ressource sur plusieurs classes : teacher_id
+// signifie deux choses differentes selon le role — pour un EA, le compte
+// enseignant qu'il assiste (fixe automatiquement a la creation, jamais
+// choisi dans un formulaire) ; sans signification pour un enseignant (voir
+// students.teacher_id pour la propriete des eleves). is_owner distingue le
+// compte qui gere les autres comptes/le reseau/les assignations : le tout
+// premier compte enseignant jamais cree de cette installation.
 export function createAccount(username, password, role, profile = {}) {
   if (!ROLES.includes(role)) throw new Error('Role invalide')
   const id = randomUUID()
   const hash = bcrypt.hashSync(password, SALT_ROUNDS)
+  const isOwner = role === 'enseignant' && !hasTeacherAccount()
   db.prepare(
     `INSERT INTO users
-     (id, username, password_hash, role, nom_complet, courriel, ecole, division_scolaire, annee_scolaire, titre, laipvp_acknowledged, laipvp_acknowledged_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+     (id, username, password_hash, role, nom_complet, courriel, ecole, division_scolaire, annee_scolaire, titre, laipvp_acknowledged, laipvp_acknowledged_at, teacher_id, is_owner)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     id,
     username,
@@ -60,7 +70,9 @@ export function createAccount(username, password, role, profile = {}) {
     profile.anneeScolaire || null,
     profile.titre || null,
     profile.laipvpAcknowledged ? 1 : 0,
-    profile.laipvpAcknowledged ? new Date().toISOString() : null
+    profile.laipvpAcknowledged ? new Date().toISOString() : null,
+    profile.teacherId || null,
+    isOwner ? 1 : 0
   )
   return toUserProfileDTO(db.prepare('SELECT * FROM users WHERE id = ?').get(id))
 }
@@ -106,8 +118,37 @@ export function updateProfile(userId, data) {
 
 export function listAccounts() {
   return db
-    .prepare('SELECT username, role, nom_complet AS nomComplet, titre, created_at FROM users ORDER BY created_at ASC')
+    .prepare('SELECT username, role, nom_complet AS nomComplet, titre, is_owner AS isOwner, created_at FROM users ORDER BY created_at ASC')
     .all()
+    .map((a) => ({ ...a, isOwner: !!a.isOwner }))
+}
+
+// Assignations enseignant-ressource : qui (resource) peut consulter/modifier
+// les eleves de qui (owner). Jointures pour affichage direct cote client
+// sans requete supplementaire par ligne.
+export function listAssignments() {
+  return db
+    .prepare(
+      `SELECT ta.id,
+              r.username AS resourceUsername, r.nom_complet AS resourceNomComplet,
+              o.username AS ownerUsername, o.nom_complet AS ownerNomComplet
+       FROM teacher_assignments ta
+       JOIN users r ON r.id = ta.resource_user_id
+       JOIN users o ON o.id = ta.owner_user_id
+       ORDER BY ta.created_at ASC`
+    )
+    .all()
+}
+
+export function createAssignment(resourceUserId, ownerUserId) {
+  const id = db
+    .prepare('INSERT INTO teacher_assignments (resource_user_id, owner_user_id) VALUES (?, ?)')
+    .run(resourceUserId, ownerUserId).lastInsertRowid
+  return listAssignments().find((a) => a.id === id)
+}
+
+export function deleteAssignment(id) {
+  return db.prepare('DELETE FROM teacher_assignments WHERE id = ?').run(id).changes > 0
 }
 
 export function verifyPassword(password, hash) {
@@ -157,4 +198,18 @@ export function requireRole(...allowedRoles) {
     }
     return next()
   }
+}
+
+// Réservé au compte "propriétaire" de l'installation (voir createAccount) :
+// gestion des autres comptes, réglage réseau local, assignations
+// enseignant-ressource. Un compte enseignant collaborateur garde tous ses
+// droits sur les PEI auxquels il a accès, mais pas sur ces trois-là.
+export function requireOwner(req, res, next) {
+  if (!req.session || !req.session.userId) {
+    return res.status(401).json({ error: 'Authentification requise' })
+  }
+  if (!req.session.isOwner) {
+    return res.status(403).json({ error: 'Action réservée au compte propriétaire.' })
+  }
+  return next()
 }

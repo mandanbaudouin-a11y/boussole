@@ -32,12 +32,16 @@ import {
   createAccount,
   findUserByUsername,
   listAccounts,
+  listAssignments,
+  createAssignment,
+  deleteAssignment,
   verifyPassword,
   isLockedOut,
   registerFailedAttempt,
   clearFailedAttempts,
   requireAuth,
   requireRole,
+  requireOwner,
   getUserProfile,
   getTeacherProfile,
   updateProfile,
@@ -103,6 +107,99 @@ const getTransitionStepsForGoal = db.prepare(
 const insertReportVersion = db.prepare(
   'INSERT INTO report_versions (student_id, exported_by, content_snapshot) VALUES (?, ?, ?)'
 )
+
+// ---------- Portée des données (collaboration enseignant-ressource) ----------
+// Un compte enseignant voit toujours ses propres élèves, plus ceux de tout
+// compte enseignant qui lui a accordé une assignation (teacher_assignments).
+// Un compte EA ne voit que les élèves du compte enseignant qu'il assiste
+// (users.teacher_id). Calculée à chaque requête (pas de cache en session) :
+// une assignation créée ou retirée prend effet immédiatement, sans
+// reconnexion. Pas de db.prepare() unique en tête de fichier ici, contrairement
+// au reste de ce module : la clause IN (...) a une taille qui dépend de la
+// session, donc la requête est reconstruite à chaque appel.
+function accessibleTeacherIds(req) {
+  if (req.session.role === 'ea') {
+    const row = db.prepare('SELECT teacher_id FROM users WHERE id = ?').get(req.session.userId)
+    return row?.teacher_id ? [row.teacher_id] : []
+  }
+  const grants = db
+    .prepare('SELECT owner_user_id FROM teacher_assignments WHERE resource_user_id = ?')
+    .all(req.session.userId)
+  return [req.session.userId, ...grants.map((g) => g.owner_user_id)]
+}
+
+function accessFilter(req) {
+  const ids = accessibleTeacherIds(req)
+  return { placeholders: ids.map(() => '?').join(',') || 'NULL', ids }
+}
+
+function getAccessibleStudent(req, studentId) {
+  const { placeholders, ids } = accessFilter(req)
+  return db.prepare(`SELECT * FROM students WHERE id = ? AND teacher_id IN (${placeholders})`).get(studentId, ...ids)
+}
+
+function getAccessibleGoal(req, goalId) {
+  const { placeholders, ids } = accessFilter(req)
+  return db
+    .prepare(`SELECT g.* FROM goals g JOIN students s ON s.id = g.student_id WHERE g.id = ? AND s.teacher_id IN (${placeholders})`)
+    .get(goalId, ...ids)
+}
+
+function getAccessibleStrategy(req, strategyId) {
+  const { placeholders, ids } = accessFilter(req)
+  return db
+    .prepare(
+      `SELECT gs.* FROM goal_strategies gs
+       JOIN goals g ON g.id = gs.goal_id
+       JOIN students s ON s.id = g.student_id
+       WHERE gs.id = ? AND s.teacher_id IN (${placeholders})`
+    )
+    .get(strategyId, ...ids)
+}
+
+function getAccessibleAdaptation(req, adaptationId) {
+  const { placeholders, ids } = accessFilter(req)
+  return db
+    .prepare(`SELECT a.* FROM adaptations a JOIN students s ON s.id = a.student_id WHERE a.id = ? AND s.teacher_id IN (${placeholders})`)
+    .get(adaptationId, ...ids)
+}
+
+function getAccessibleModification(req, modificationId) {
+  const { placeholders, ids } = accessFilter(req)
+  return db
+    .prepare(`SELECT m.* FROM modifications m JOIN students s ON s.id = m.student_id WHERE m.id = ? AND s.teacher_id IN (${placeholders})`)
+    .get(modificationId, ...ids)
+}
+
+function getAccessibleTransitionGoal(req, goalId) {
+  const { placeholders, ids } = accessFilter(req)
+  return db
+    .prepare(
+      `SELECT tg.* FROM transition_goals tg JOIN students s ON s.id = tg.student_id WHERE tg.id = ? AND s.teacher_id IN (${placeholders})`
+    )
+    .get(goalId, ...ids)
+}
+
+function getAccessibleTransitionStep(req, stepId) {
+  const { placeholders, ids } = accessFilter(req)
+  return db
+    .prepare(
+      `SELECT ts.* FROM transition_steps ts
+       JOIN transition_goals tg ON tg.id = ts.transition_goal_id
+       JOIN students s ON s.id = tg.student_id
+       WHERE ts.id = ? AND s.teacher_id IN (${placeholders})`
+    )
+    .get(stepId, ...ids)
+}
+
+function getAccessibleReportVersion(req, versionId) {
+  const { placeholders, ids } = accessFilter(req)
+  return db
+    .prepare(
+      `SELECT rv.* FROM report_versions rv JOIN students s ON s.id = rv.student_id WHERE rv.id = ? AND s.teacher_id IN (${placeholders})`
+    )
+    .get(versionId, ...ids)
+}
 
 function toTransitionGoalDTO(g) {
   return { ...g, steps: getTransitionStepsForGoal.all(g.id) }
@@ -241,11 +338,17 @@ app.post('/api/auth/setup', (req, res) => {
     titre: req.body.titre || null,
     laipvpAcknowledged: !!req.body.laipvpAcknowledged,
   })
+  // Rattache au tout premier compte enseignant les élèves de démonstration
+  // (seed(), voir server/db.js) créés avant qu'aucun compte n'existe — sans
+  // ça, ils resteraient invisibles (teacher_id NULL) une fois le
+  // cloisonnement par enseignant en place.
+  db.prepare('UPDATE students SET teacher_id = ? WHERE teacher_id IS NULL').run(user.id)
   req.session.regenerate((err) => {
     if (err) return res.status(500).json({ error: 'Erreur de session' })
     req.session.userId = user.id
     req.session.username = user.username
     req.session.role = user.role
+    req.session.isOwner = user.isOwner
     res.status(201).json({ username: user.username, role: user.role, profile: user })
   })
 })
@@ -277,6 +380,7 @@ app.post('/api/auth/login', (req, res) => {
     req.session.userId = user.id
     req.session.username = user.username
     req.session.role = user.role
+    req.session.isOwner = !!user.is_owner
     res.json({ username: user.username, role: user.role })
   })
 })
@@ -295,7 +399,11 @@ app.get('/api/auth/accounts', requireRole('enseignant'), (req, res) => {
   res.json(listAccounts())
 })
 
-app.post('/api/auth/create-ea', requireRole('enseignant'), (req, res) => {
+// Réservé au compte propriétaire (requireOwner) : un compte enseignant
+// collaborateur (ex. enseignant-ressource assigné à une classe) garde tous
+// ses droits sur les PEI auxquels il a accès, mais pas sur la création
+// d'autres comptes — voir le complément "Compte propriétaire" du plan.
+app.post('/api/auth/create-ea', requireOwner, (req, res) => {
   const username = (req.body.username || '').trim()
   const password = req.body.password || ''
   if (username.length < 3) {
@@ -307,17 +415,17 @@ app.post('/api/auth/create-ea', requireRole('enseignant'), (req, res) => {
   if (findUserByUsername(username)) {
     return res.status(409).json({ error: 'Ce nom d\'utilisateur est déjà pris.' })
   }
-  const user = createAccount(username, password, 'ea')
+  // L'EA est automatiquement rattaché à qui le crée (users.teacher_id) : dans
+  // une base partagée, il ne doit voir que les élèves de ce compte enseignant,
+  // pas ceux de toute l'école. Aucun champ à choisir dans le formulaire.
+  const user = createAccount(username, password, 'ea', { teacherId: req.session.userId })
   res.status(201).json({ username: user.username, role: user.role })
 })
 
-// Second compte "enseignant" (droits complets), pour un enseignant-ressource
-// ou tout autre collaborateur travaillant sur les mêmes PEI. Comme un compte
-// EA peut déjà être créé par n'importe quel compte enseignant, ce nouveau
-// compte a la même portée que le premier (y compris la gestion des autres
-// comptes) — il n'existe pas de rôle intermédiaire "modifie les PEI mais pas
-// les comptes" dans ce modèle de permissions.
-app.post('/api/auth/create-enseignant', requireRole('enseignant'), (req, res) => {
+// Second compte "enseignant" (droits complets sur les PEI auxquels il a
+// accès), pour un enseignant-ressource ou tout autre collaborateur. Réservé
+// au compte propriétaire, comme create-ea ci-dessus.
+app.post('/api/auth/create-enseignant', requireOwner, (req, res) => {
   const username = (req.body.username || '').trim()
   const password = req.body.password || ''
   const nomComplet = (req.body.nomComplet || '').trim()
@@ -338,6 +446,44 @@ app.post('/api/auth/create-enseignant', requireRole('enseignant'), (req, res) =>
   }
   const user = createAccount(username, password, 'enseignant', { nomComplet, titre: req.body.titre || null })
   res.status(201).json({ username: user.username, role: user.role })
+})
+
+// Assignations enseignant-ressource : qui peut consulter/modifier les élèves
+// de qui (teacher_assignments). Lecture ouverte à tout compte enseignant
+// (utile pour voir qui a accès à ses propres élèves) ; écriture réservée au
+// propriétaire.
+app.get('/api/auth/assignments', requireRole('enseignant'), (req, res) => {
+  res.json(listAssignments())
+})
+
+app.post('/api/auth/assignments', requireOwner, (req, res) => {
+  const resourceUsername = (req.body.resourceUsername || '').trim()
+  const ownerUsername = (req.body.ownerUsername || '').trim()
+  if (!resourceUsername || !ownerUsername) {
+    return res.status(400).json({ error: 'Les deux comptes sont requis.' })
+  }
+  if (resourceUsername === ownerUsername) {
+    return res.status(400).json({ error: 'Un compte ne peut pas être assigné à lui-même.' })
+  }
+  const resourceUser = findUserByUsername(resourceUsername)
+  const ownerUser = findUserByUsername(ownerUsername)
+  if (!resourceUser || resourceUser.role !== 'enseignant') {
+    return res.status(400).json({ error: 'Compte collaborateur introuvable ou invalide.' })
+  }
+  if (!ownerUser || ownerUser.role !== 'enseignant') {
+    return res.status(400).json({ error: 'Compte propriétaire de classe introuvable ou invalide.' })
+  }
+  try {
+    const assignment = createAssignment(resourceUser.id, ownerUser.id)
+    res.status(201).json(assignment)
+  } catch {
+    res.status(409).json({ error: 'Cette assignation existe déjà.' })
+  }
+})
+
+app.delete('/api/auth/assignments/:id', requireOwner, (req, res) => {
+  if (!deleteAssignment(req.params.id)) return notFound(res, 'Assignation')
+  res.status(204).end()
 })
 
 app.get('/api/auth/profile', requireRole('enseignant'), (req, res) => {
@@ -368,8 +514,9 @@ app.patch('/api/auth/profile', requireRole('enseignant'), (req, res) => {
 // (ex. un enseignant-ressource travaillant en collaboration) d'ouvrir
 // l'application dans un navigateur sans rien installer. Le changement ne
 // prend effet qu'au prochain démarrage de l'application (le port d'écoute
-// ne peut pas être rouvert sur une autre interface sans redémarrer).
-app.get('/api/network-settings', requireRole('enseignant'), (req, res) => {
+// ne peut pas être rouvert sur une autre interface sans redémarrer). Réservé
+// au compte propriétaire (requireOwner), comme la gestion des comptes.
+app.get('/api/network-settings', requireOwner, (req, res) => {
   res.json({
     lanSharingEnabled: isLanSharingEnabled(),
     lanAddresses: getLanAddresses(),
@@ -377,7 +524,7 @@ app.get('/api/network-settings', requireRole('enseignant'), (req, res) => {
   })
 })
 
-app.post('/api/network-settings', requireRole('enseignant'), (req, res) => {
+app.post('/api/network-settings', requireOwner, (req, res) => {
   setLanSharingEnabled(!!req.body.lanSharingEnabled)
   res.json({
     lanSharingEnabled: isLanSharingEnabled(),
@@ -396,7 +543,8 @@ app.use((req, res, next) => {
 // ---------- Students ----------
 
 app.get('/api/students', (req, res) => {
-  const rows = db.prepare('SELECT * FROM students ORDER BY rowid ASC').all()
+  const { placeholders, ids } = accessFilter(req)
+  const rows = db.prepare(`SELECT * FROM students WHERE teacher_id IN (${placeholders}) ORDER BY rowid ASC`).all(...ids)
   res.json(rows.map(toStudentDTO))
 })
 
@@ -433,18 +581,19 @@ app.post('/api/students', requireRole('enseignant'), (req, res) => {
     return res.status(400).json({ error: 'Date de naissance invalide.' })
   }
   const id = randomUUID()
-  db.prepare('INSERT INTO students (id, name, grade, next_review_date, birthdate) VALUES (?, ?, ?, ?, ?)').run(
+  db.prepare('INSERT INTO students (id, name, grade, next_review_date, birthdate, teacher_id) VALUES (?, ?, ?, ?, ?, ?)').run(
     id,
     name.trim(),
     grade.trim(),
     DATE_RE.test(nextReviewDate) ? nextReviewDate : defaultNextReviewDate(),
-    birthdateResult.value
+    birthdateResult.value,
+    req.session.userId
   )
   res.status(201).json(toStudentDTO(getStudentRow.get(id)))
 })
 
 app.patch('/api/students/:id', requireRole('enseignant'), (req, res) => {
-  const existing = getStudentRow.get(req.params.id)
+  const existing = getAccessibleStudent(req, req.params.id)
   if (!existing) return notFound(res, 'Élève')
 
   const name = req.body.name !== undefined ? req.body.name.trim() : existing.name
@@ -553,7 +702,7 @@ app.patch('/api/students/:id', requireRole('enseignant'), (req, res) => {
 })
 
 app.delete('/api/students/:id', requireRole('enseignant'), (req, res) => {
-  const existing = getStudentRow.get(req.params.id)
+  const existing = getAccessibleStudent(req, req.params.id)
   if (!existing) return notFound(res, 'Élève')
   db.prepare('DELETE FROM students WHERE id = ?').run(req.params.id)
   res.status(204).end()
@@ -562,7 +711,7 @@ app.delete('/api/students/:id', requireRole('enseignant'), (req, res) => {
 // ---------- Goals ----------
 
 app.post('/api/students/:id/goals', requireRole('enseignant'), (req, res) => {
-  const student = getStudentRow.get(req.params.id)
+  const student = getAccessibleStudent(req, req.params.id)
   if (!student) return notFound(res, 'Élève')
 
   const label = (req.body.label || '').trim()
@@ -587,7 +736,7 @@ app.post('/api/students/:id/goals', requireRole('enseignant'), (req, res) => {
 // objectif directement (l'ancienne case à cocher "done", redondante avec le
 // niveau de satisfaction, a été retirée).
 app.patch('/api/goals/:goalId', requireRole('enseignant'), (req, res) => {
-  const goal = db.prepare('SELECT * FROM goals WHERE id = ?').get(req.params.goalId)
+  const goal = getAccessibleGoal(req, req.params.goalId)
   if (!goal) return notFound(res, 'Objectif')
 
   const label = req.body.label !== undefined ? req.body.label.trim() : goal.label
@@ -612,7 +761,7 @@ app.patch('/api/goals/:goalId', requireRole('enseignant'), (req, res) => {
 })
 
 app.delete('/api/goals/:goalId', requireRole('enseignant'), (req, res) => {
-  const goal = db.prepare('SELECT * FROM goals WHERE id = ?').get(req.params.goalId)
+  const goal = getAccessibleGoal(req, req.params.goalId)
   if (!goal) return notFound(res, 'Objectif')
   db.prepare('DELETE FROM goals WHERE id = ?').run(req.params.goalId)
   res.status(204).end()
@@ -636,7 +785,7 @@ app.get('/api/forces-besoins-library', (req, res) => {
 })
 
 app.post('/api/goals/:goalId/strategies', requireRole('enseignant'), (req, res) => {
-  const goal = db.prepare('SELECT * FROM goals WHERE id = ?').get(req.params.goalId)
+  const goal = getAccessibleGoal(req, req.params.goalId)
   if (!goal) return notFound(res, 'Objectif')
 
   const label = (req.body.label || '').trim()
@@ -657,7 +806,7 @@ app.post('/api/goals/:goalId/strategies', requireRole('enseignant'), (req, res) 
 })
 
 app.delete('/api/strategies/:strategyId', requireRole('enseignant'), (req, res) => {
-  const strategy = db.prepare('SELECT * FROM goal_strategies WHERE id = ?').get(req.params.strategyId)
+  const strategy = getAccessibleStrategy(req, req.params.strategyId)
   if (!strategy) return notFound(res, 'Stratégie')
   db.prepare('DELETE FROM goal_strategies WHERE id = ?').run(req.params.strategyId)
   res.status(204).end()
@@ -669,7 +818,7 @@ app.delete('/api/strategies/:strategyId', requireRole('enseignant'), (req, res) 
 // le programme/les attentes. Réservé à l'enseignant comme le reste du profil.
 
 app.post('/api/students/:id/adaptations', requireRole('enseignant'), (req, res) => {
-  const student = getStudentRow.get(req.params.id)
+  const student = getAccessibleStudent(req, req.params.id)
   if (!student) return notFound(res, 'Élève')
 
   const description = (req.body.description || '').trim()
@@ -695,14 +844,14 @@ app.post('/api/students/:id/adaptations', requireRole('enseignant'), (req, res) 
 })
 
 app.delete('/api/adaptations/:adaptationId', requireRole('enseignant'), (req, res) => {
-  const adaptation = db.prepare('SELECT * FROM adaptations WHERE id = ?').get(req.params.adaptationId)
+  const adaptation = getAccessibleAdaptation(req, req.params.adaptationId)
   if (!adaptation) return notFound(res, 'Adaptation')
   db.prepare('DELETE FROM adaptations WHERE id = ?').run(req.params.adaptationId)
   res.status(204).end()
 })
 
 app.post('/api/students/:id/modifications', requireRole('enseignant'), (req, res) => {
-  const student = getStudentRow.get(req.params.id)
+  const student = getAccessibleStudent(req, req.params.id)
   if (!student) return notFound(res, 'Élève')
 
   const description = (req.body.description || '').trim()
@@ -723,7 +872,7 @@ app.post('/api/students/:id/modifications', requireRole('enseignant'), (req, res
 })
 
 app.delete('/api/modifications/:modificationId', requireRole('enseignant'), (req, res) => {
-  const modification = db.prepare('SELECT * FROM modifications WHERE id = ?').get(req.params.modificationId)
+  const modification = getAccessibleModification(req, req.params.modificationId)
   if (!modification) return notFound(res, 'Modification')
   db.prepare('DELETE FROM modifications WHERE id = ?').run(req.params.modificationId)
   res.status(204).end()
@@ -736,7 +885,7 @@ app.delete('/api/modifications/:modificationId', requireRole('enseignant'), (req
 // case ou dont les données d'âge ont changé entre-temps reste libre d'agir.
 
 app.post('/api/students/:id/transition-goals', requireRole('enseignant'), (req, res) => {
-  const student = getStudentRow.get(req.params.id)
+  const student = getAccessibleStudent(req, req.params.id)
   if (!student) return notFound(res, 'Élève')
 
   const description = (req.body.description || '').trim()
@@ -763,14 +912,14 @@ app.post('/api/students/:id/transition-goals', requireRole('enseignant'), (req, 
 })
 
 app.delete('/api/transition-goals/:goalId', requireRole('enseignant'), (req, res) => {
-  const goal = db.prepare('SELECT * FROM transition_goals WHERE id = ?').get(req.params.goalId)
+  const goal = getAccessibleTransitionGoal(req, req.params.goalId)
   if (!goal) return notFound(res, 'Objectif de transition')
   db.prepare('DELETE FROM transition_goals WHERE id = ?').run(req.params.goalId)
   res.status(204).end()
 })
 
 app.post('/api/transition-goals/:goalId/steps', requireRole('enseignant'), (req, res) => {
-  const goal = db.prepare('SELECT * FROM transition_goals WHERE id = ?').get(req.params.goalId)
+  const goal = getAccessibleTransitionGoal(req, req.params.goalId)
   if (!goal) return notFound(res, 'Objectif de transition')
 
   const description = (req.body.description || '').trim()
@@ -788,7 +937,7 @@ app.post('/api/transition-goals/:goalId/steps', requireRole('enseignant'), (req,
 })
 
 app.delete('/api/transition-steps/:stepId', requireRole('enseignant'), (req, res) => {
-  const step = db.prepare('SELECT * FROM transition_steps WHERE id = ?').get(req.params.stepId)
+  const step = getAccessibleTransitionStep(req, req.params.stepId)
   if (!step) return notFound(res, 'Étape')
   db.prepare('DELETE FROM transition_steps WHERE id = ?').run(req.params.stepId)
   res.status(204).end()
@@ -799,7 +948,7 @@ app.delete('/api/transition-steps/:stepId', requireRole('enseignant'), (req, res
 // cochés) est le cœur du travail de l'EA auprès des élèves.
 
 app.post('/api/students/:id/notes', requireRole('enseignant', 'ea'), (req, res) => {
-  const student = getStudentRow.get(req.params.id)
+  const student = getAccessibleStudent(req, req.params.id)
   if (!student) return notFound(res, 'Élève')
 
   const text = (req.body.text || '').trim()
@@ -840,7 +989,7 @@ function recordReportVersion(dto, req) {
 }
 
 app.get('/api/students/:id/report.pdf', (req, res) => {
-  const row = getStudentRow.get(req.params.id)
+  const row = getAccessibleStudent(req, req.params.id)
   if (!row) return notFound(res, 'Élève')
   const dto = toStudentDTO(row)
   recordReportVersion(dto, req)
@@ -848,7 +997,8 @@ app.get('/api/students/:id/report.pdf', (req, res) => {
 })
 
 app.get('/api/reports/pdf', (req, res) => {
-  const rows = db.prepare('SELECT * FROM students ORDER BY rowid ASC').all()
+  const { placeholders, ids } = accessFilter(req)
+  const rows = db.prepare(`SELECT * FROM students WHERE teacher_id IN (${placeholders}) ORDER BY rowid ASC`).all(...ids)
   if (rows.length === 0) {
     return res.status(400).json({ error: 'Aucun élève à exporter.' })
   }
@@ -861,7 +1011,7 @@ app.get('/api/reports/pdf', (req, res) => {
 // (lecture seule). La liste ne renvoie pas le contenu complet (potentiellement
 // volumineux) ; il faut demander une version précise pour la consulter.
 app.get('/api/students/:id/report-versions', (req, res) => {
-  const student = getStudentRow.get(req.params.id)
+  const student = getAccessibleStudent(req, req.params.id)
   if (!student) return notFound(res, 'Élève')
   const rows = db
     .prepare('SELECT id, exported_at AS exportedAt, exported_by AS exportedBy FROM report_versions WHERE student_id = ? ORDER BY exported_at DESC, id DESC')
@@ -870,7 +1020,7 @@ app.get('/api/students/:id/report-versions', (req, res) => {
 })
 
 app.get('/api/report-versions/:versionId', (req, res) => {
-  const row = db.prepare('SELECT * FROM report_versions WHERE id = ?').get(req.params.versionId)
+  const row = getAccessibleReportVersion(req, req.params.versionId)
   if (!row) return notFound(res, 'Version de rapport')
   res.json({
     id: row.id,
@@ -926,7 +1076,7 @@ const insertAiGenerationLog = db.prepare(
 )
 
 app.post('/api/students/:id/ai-report', requireRole('enseignant'), async (req, res) => {
-  const row = getStudentRow.get(req.params.id)
+  const row = getAccessibleStudent(req, req.params.id)
   if (!row) return notFound(res, 'Élève')
 
   try {
@@ -941,7 +1091,7 @@ app.post('/api/students/:id/ai-report', requireRole('enseignant'), async (req, r
 })
 
 app.post('/api/students/:id/suggest-text', requireRole('enseignant'), async (req, res) => {
-  const row = getStudentRow.get(req.params.id)
+  const row = getAccessibleStudent(req, req.params.id)
   if (!row) return notFound(res, 'Élève')
 
   const field = req.body.field
@@ -962,7 +1112,7 @@ app.post('/api/students/:id/suggest-text', requireRole('enseignant'), async (req
 })
 
 app.patch('/api/students/:id/narrative-report', requireRole('enseignant'), (req, res) => {
-  const row = getStudentRow.get(req.params.id)
+  const row = getAccessibleStudent(req, req.params.id)
   if (!row) return notFound(res, 'Élève')
 
   const text = typeof req.body.text === 'string' ? req.body.text.trim() : ''
@@ -1013,7 +1163,8 @@ app.post('/api/import/extract', requireRole('enseignant'), (req, res) => {
 // et pour ne jamais risquer de verrouiller l'enseignant hors de son compte.
 
 app.get('/api/backup/export', requireRole('enseignant'), (req, res) => {
-  const rows = db.prepare('SELECT * FROM students ORDER BY rowid ASC').all()
+  const { placeholders, ids } = accessFilter(req)
+  const rows = db.prepare(`SELECT * FROM students WHERE teacher_id IN (${placeholders}) ORDER BY rowid ASC`).all(...ids)
   const backup = {
     app: 'pei-central',
     version: 1,
@@ -1100,8 +1251,8 @@ app.post('/api/backup/restore', requireRole('enseignant'), (req, res) => {
       `INSERT INTO students
        (id, name, grade, next_review_date, birthdate, forces, besoins,
         consultation_date, consultation_method, copy_delivery_date, acknowledgment_status, applicable_transition,
-        narrative_report, narrative_report_updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        narrative_report, narrative_report_updated_at, teacher_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     const insertGoal = db.prepare(
       'INSERT INTO goals (id, student_id, label, status, position) VALUES (?, ?, ?, ?, ?)'
@@ -1125,8 +1276,14 @@ app.post('/api/backup/restore', requireRole('enseignant'), (req, res) => {
       'INSERT INTO transition_steps (id, transition_goal_id, description, position) VALUES (?, ?, ?, ?)'
     )
 
+    // Ne supprime que les élèves déjà accessibles à qui restaure — jamais
+    // toute la table : dans une base partagée entre plusieurs comptes
+    // enseignant, restaurer sa propre sauvegarde ne doit jamais effacer les
+    // élèves d'un collègue.
+    const { placeholders, ids } = accessFilter(req)
+
     const run = db.transaction(() => {
-      db.prepare('DELETE FROM students').run() // cascade : vide aussi goals / weekly_rate / notes
+      db.prepare(`DELETE FROM students WHERE teacher_id IN (${placeholders})`).run(...ids) // cascade : vide aussi goals / weekly_rate / notes
 
       for (const s of data.students) {
         const studentId = randomUUID()
@@ -1161,7 +1318,8 @@ app.post('/api/backup/restore', requireRole('enseignant'), (req, res) => {
           acknowledgmentStatus,
           s.applicableTransition ? 1 : 0,
           narrativeReport,
-          narrativeReport ? new Date().toISOString() : null
+          narrativeReport ? new Date().toISOString() : null,
+          req.session.userId
         )
 
         const goalIdByLabel = new Map()

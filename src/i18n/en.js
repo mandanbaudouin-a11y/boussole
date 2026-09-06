@@ -258,6 +258,15 @@ export const en = {
     "No network address detected yet — check that this computer is connected to the school's network.",
   'Fermez complètement Repère puis rouvrez-le pour appliquer ce changement.':
     'Close Repère completely and reopen it for this change to take effect.',
+  'Propriétaire': 'Owner',
+  'Assignations': 'Assignments',
+  "Donne à un compte enseignant collaborateur (ex. un enseignant-ressource) accès aux élèves d'un autre compte enseignant. Prend effet immédiatement, sans reconnexion.":
+    "Gives a collaborating teacher account (e.g. a resource teacher) access to another teacher account's students. Takes effect immediately, no reconnection needed.",
+  "Aucune assignation pour l'instant.": 'No assignments yet.',
+  '{resource} → élèves de {owner}': "{resource} → {owner}'s students",
+  'Compte collaborateur': 'Collaborating account',
+  'Donner accès aux élèves de': "Grant access to this account's students",
+  'Assigner': 'Assign',
 
   // ---------- Sauvegarde ----------
   'Exporter une sauvegarde': 'Export a backup',

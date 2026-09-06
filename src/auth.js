@@ -25,6 +25,11 @@ export const auth = {
   createEnseignantAccount: (username, password, nomComplet, titre) =>
     request('/auth/create-enseignant', { method: 'POST', body: JSON.stringify({ username, password, nomComplet, titre }) }),
 
+  getAssignments: () => request('/auth/assignments'),
+  createAssignment: (resourceUsername, ownerUsername) =>
+    request('/auth/assignments', { method: 'POST', body: JSON.stringify({ resourceUsername, ownerUsername }) }),
+  deleteAssignment: (id) => request(`/auth/assignments/${id}`, { method: 'DELETE' }),
+
   getProfile: () => request('/auth/profile'),
   updateProfile: (data) => request('/auth/profile', { method: 'PATCH', body: JSON.stringify(data) }),
 }

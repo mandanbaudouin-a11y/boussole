@@ -236,6 +236,102 @@ function NetworkSettingsPanel() {
   )
 }
 
+function AssignmentsPanel({ accounts }) {
+  const { t } = useLanguage()
+  const [assignments, setAssignments] = useState(null)
+  const [error, setError] = useState(null)
+  const [resourceUsername, setResourceUsername] = useState('')
+  const [ownerUsername, setOwnerUsername] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const load = () => {
+    auth.getAssignments().then(setAssignments).catch((e) => setError(e.message))
+  }
+
+  useEffect(load, [])
+
+  const teacherAccounts = (accounts || []).filter((a) => a.role === 'enseignant')
+
+  const submit = async (e) => {
+    e.preventDefault()
+    if (!resourceUsername || !ownerUsername) return
+    setSaving(true)
+    setError(null)
+    try {
+      await auth.createAssignment(resourceUsername, ownerUsername)
+      setResourceUsername('')
+      setOwnerUsername('')
+      load()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const remove = async (id) => {
+    setError(null)
+    try {
+      await auth.deleteAssignment(id)
+      load()
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  return (
+    <div className="card">
+      <div className="card-header">
+        <p className="student-name" style={{ fontSize: 15, cursor: 'default' }}>{t('Assignations')}</p>
+      </div>
+      <p className="backup-hint">
+        {t("Donne à un compte enseignant collaborateur (ex. un enseignant-ressource) accès aux élèves d'un autre compte enseignant. Prend effet immédiatement, sans reconnexion.")}
+      </p>
+
+      {error && <div className="alert alert-urgent" style={{ marginBottom: 12 }}>{error}</div>}
+      {!assignments && <p className="page-date" style={{ margin: 0 }}>{t('Chargement…')}</p>}
+
+      {assignments && assignments.length === 0 && (
+        <p className="page-date" style={{ margin: '0 0 14px' }}>{t("Aucune assignation pour l'instant.")}</p>
+      )}
+
+      {assignments && assignments.length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          {assignments.map((a) => (
+            <div className="goal-row" key={a.id}>
+              <span className="goal-label">
+                {t('{resource} → élèves de {owner}', {
+                  resource: a.resourceNomComplet || a.resourceUsername,
+                  owner: a.ownerNomComplet || a.ownerUsername,
+                })}
+              </span>
+              <button type="button" className="btn" onClick={() => remove(a.id)}>{t('Retirer')}</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <form onSubmit={submit} className="form-row" style={{ flexWrap: 'wrap' }}>
+        <select className="text-input" value={resourceUsername} onChange={(e) => setResourceUsername(e.target.value)}>
+          <option value="">{t('Compte collaborateur')}</option>
+          {teacherAccounts.map((a) => (
+            <option key={a.username} value={a.username}>{a.nomComplet || a.username}</option>
+          ))}
+        </select>
+        <select className="text-input" value={ownerUsername} onChange={(e) => setOwnerUsername(e.target.value)}>
+          <option value="">{t('Donner accès aux élèves de')}</option>
+          {teacherAccounts.map((a) => (
+            <option key={a.username} value={a.username}>{a.nomComplet || a.username}</option>
+          ))}
+        </select>
+        <button type="submit" className="btn btn-primary" disabled={saving || !resourceUsername || !ownerUsername}>
+          {saving ? t('Enregistrement...') : t('Assigner')}
+        </button>
+      </form>
+    </div>
+  )
+}
+
 const KEY_PLACEHOLDERS = {
   anthropic: 'sk-ant-...',
   mistral: 'Clé API Mistral...',
@@ -527,6 +623,7 @@ function TeacherProfilePanel() {
 export default function AccountsAdmin() {
   const { t } = useLanguage()
   const [accounts, setAccounts] = useState(null)
+  const [isOwner, setIsOwner] = useState(null)
   const [error, setError] = useState(null)
 
   const load = () => {
@@ -537,6 +634,9 @@ export default function AccountsAdmin() {
   }
 
   useEffect(load, [])
+  useEffect(() => {
+    auth.getProfile().then((p) => setIsOwner(p.isOwner)).catch(() => setIsOwner(false))
+  }, [])
 
   return (
     <div>
@@ -560,18 +660,27 @@ export default function AccountsAdmin() {
                 </span>
               )}
             </span>
-            <span className="tag-mark">{t(ROLE_LABELS[account.role]) || account.role}</span>
+            <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              {account.isOwner && <span className="status-badge status-atteint">{t('Propriétaire')}</span>}
+              <span className="tag-mark">{t(ROLE_LABELS[account.role]) || account.role}</span>
+            </span>
           </div>
         ))}
       </div>
 
       <TeacherProfilePanel />
 
-      <NewEaForm onCreated={load} />
+      {isOwner && (
+        <>
+          <NewEaForm onCreated={load} />
 
-      <NewCollaboratorForm onCreated={load} />
+          <NewCollaboratorForm onCreated={load} />
 
-      <NetworkSettingsPanel />
+          <AssignmentsPanel accounts={accounts} />
+
+          <NetworkSettingsPanel />
+        </>
+      )}
 
       <AiSettingsPanel />
     </div>

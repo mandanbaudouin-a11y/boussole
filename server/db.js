@@ -221,6 +221,17 @@ db.exec(`
     exported_by TEXT,
     content_snapshot TEXT NOT NULL
   );
+
+  -- Une ligne = le compte resource_user_id peut consulter/modifier les
+  -- eleves du compte owner_user_id (collaboration enseignant-ressource sur
+  -- plusieurs classes). Voir aussi students.teacher_id et users.teacher_id.
+  CREATE TABLE IF NOT EXISTS teacher_assignments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    resource_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    owner_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(resource_user_id, owner_user_id)
+  );
 `)
 
 // Migration : les bases créées avant l'ajout du rôle EA n'ont pas la colonne.
@@ -317,6 +328,43 @@ if (!studentColumns.includes('applicable_transition')) {
 // ALTER de ce fichier) ; la validite est verifiee cote application.
 if (!studentColumns.includes('delivered_version_id')) {
   db.exec('ALTER TABLE students ADD COLUMN delivered_version_id INTEGER')
+}
+
+// Migration : collaboration enseignant-ressource sur plusieurs classes.
+// Chaque eleve appartient desormais a un compte enseignant precis
+// (teacher_id), et chaque compte EA est supervise par un compte enseignant
+// precis (users.teacher_id, sans rapport avec le meme nom de colonne sur
+// students). Backfill immediat vers le premier compte enseignant de la base
+// (le seul qui existe avant cette fonctionnalite) : une installation a un
+// seul enseignant continue de tout voir exactement comme avant, sans aucune
+// reconfiguration.
+if (!studentColumns.includes('teacher_id')) {
+  db.exec('ALTER TABLE students ADD COLUMN teacher_id TEXT')
+  const firstTeacher = db.prepare("SELECT id FROM users WHERE role = 'enseignant' ORDER BY created_at ASC LIMIT 1").get()
+  if (firstTeacher) {
+    db.prepare('UPDATE students SET teacher_id = ? WHERE teacher_id IS NULL').run(firstTeacher.id)
+  }
+}
+
+if (!userColumns.includes('teacher_id')) {
+  db.exec('ALTER TABLE users ADD COLUMN teacher_id TEXT')
+  const firstTeacher = db.prepare("SELECT id FROM users WHERE role = 'enseignant' ORDER BY created_at ASC LIMIT 1").get()
+  if (firstTeacher) {
+    db.prepare("UPDATE users SET teacher_id = ? WHERE role = 'ea' AND teacher_id IS NULL").run(firstTeacher.id)
+  }
+}
+
+// Migration : compte "proprietaire" de l'installation — seul a pouvoir gerer
+// les autres comptes, le reglage reseau local et les assignations
+// enseignant-ressource (teacher_assignments). Le tout premier compte
+// enseignant jamais cree devient proprietaire automatiquement (voir aussi
+// createAccount() dans auth.js, qui applique la meme regle a la creation).
+if (!userColumns.includes('is_owner')) {
+  db.exec('ALTER TABLE users ADD COLUMN is_owner INTEGER NOT NULL DEFAULT 0')
+  const firstTeacher = db.prepare("SELECT id FROM users WHERE role = 'enseignant' ORDER BY created_at ASC LIMIT 1").get()
+  if (firstTeacher) {
+    db.prepare('UPDATE users SET is_owner = 1 WHERE id = ?').run(firstTeacher.id)
+  }
 }
 
 const studentCount = db.prepare('SELECT COUNT(*) AS n FROM students').get().n

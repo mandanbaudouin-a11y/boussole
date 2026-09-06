@@ -48,3 +48,12 @@ export async function createEnseignant(baseUrl, teacherCookie, overrides = {}) {
   })
   return res
 }
+
+export async function createAssignmentGrant(baseUrl, ownerCookie, resourceUsername, ownerUsername) {
+  const res = await fetch(`${baseUrl}/api/auth/assignments`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Cookie: ownerCookie },
+    body: JSON.stringify({ resourceUsername, ownerUsername }),
+  })
+  return res
+}

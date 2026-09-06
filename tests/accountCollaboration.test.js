@@ -85,6 +85,13 @@ describe('attribution correcte de "genere par" / "exporte par" (plusieurs compte
       await fetch(`${baseUrl}/api/students`, authed(teacherCookie, { method: 'POST', body: JSON.stringify({ name: 'Élève test', grade: '1re année' }) }))
     ).json()
 
+    // Sans assignation, le collaborateur ne voit pas les élèves du compte
+    // principal (cloisonnement par classe) — il faut l'accorder explicitement.
+    await fetch(
+      `${baseUrl}/api/auth/assignments`,
+      authed(teacherCookie, { method: 'POST', body: JSON.stringify({ resourceUsername: 'ressource', ownerUsername: 'prof' }) })
+    )
+
     await fetch(`${baseUrl}/api/students/${student.id}/report.pdf`, authed(ressource.cookie))
 
     const versions = db.prepare('SELECT * FROM report_versions WHERE student_id = ?').all(student.id)
