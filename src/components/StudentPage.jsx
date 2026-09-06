@@ -19,6 +19,7 @@ import { triggerBlobDownload } from '../downloadBlob'
 import { initials, avatarColor } from '../avatar'
 import { useLanguage } from '../i18n/LanguageContext'
 import { useConfirm } from '../ConfirmContext'
+import { sameContent } from '../reportChangeDetection'
 
 function formatDate(dateStr, lang) {
   if (!dateStr) return null
@@ -1264,11 +1265,13 @@ function ReportVersionViewer({ versionId, onClose }) {
   )
 }
 
-function ReportVersionsHistory({ studentId, refreshSignal, deliveredVersionId, copyDeliveryDate }) {
+function ReportVersionsHistory({ student, refreshSignal, deliveredVersionId, copyDeliveryDate }) {
   const { t, lang } = useLanguage()
+  const studentId = student.id
   const [versions, setVersions] = useState(null)
   const [error, setError] = useState(null)
   const [viewingId, setViewingId] = useState(null)
+  const [changedSinceLastExport, setChangedSinceLastExport] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -1279,11 +1282,29 @@ function ReportVersionsHistory({ studentId, refreshSignal, deliveredVersionId, c
     return () => { cancelled = true }
   }, [studentId, refreshSignal])
 
+  useEffect(() => {
+    if (!versions || versions.length === 0) {
+      setChangedSinceLastExport(false)
+      return
+    }
+    let cancelled = false
+    api.getReportVersion(versions[0].id).then(
+      (v) => { if (!cancelled) setChangedSinceLastExport(!sameContent(student, v.snapshot)) },
+      () => { if (!cancelled) setChangedSinceLastExport(false) }
+    )
+    return () => { cancelled = true }
+  }, [versions, student])
+
   return (
     <div className="card">
       <div className="card-header">
         <p className="student-name" style={{ fontSize: 15, cursor: 'default' }}>{t('Historique des exports')}</p>
       </div>
+      {versions && versions.length > 0 && changedSinceLastExport && (
+        <div className="alert alert-warning" style={{ marginBottom: 12 }}>
+          {t('Des changements ont été faits depuis le dernier rapport exporté, le {date}.', { date: formatHistoryDate(versions[0].exportedAt) })}
+        </div>
+      )}
       {error && <div className="alert alert-urgent">{error}</div>}
       {!versions && !error && <p style={{ color: 'var(--ink-soft)' }}>{t("Chargement de l'historique...")}</p>}
       {versions && versions.length === 0 && (
@@ -1426,7 +1447,7 @@ function RapportTab({ student, canEdit, onSaveNarrativeReport }) {
       </div>
 
       <ReportVersionsHistory
-        studentId={student.id}
+        student={student}
         refreshSignal={historyRefresh}
         deliveredVersionId={student.deliveredVersionId}
         copyDeliveryDate={student.copyDeliveryDate}

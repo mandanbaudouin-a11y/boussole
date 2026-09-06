@@ -236,6 +236,8 @@ export const en = {
   "Aucune version exportée à associer pour l'instant — exportez d'abord un rapport en PDF (onglet Rapport).":
     "No exported version to link yet — export a PDF report first (Report tab).",
   'Remis à un parent le {date}': 'Delivered to a parent on {date}',
+  'Des changements ont été faits depuis le dernier rapport exporté, le {date}.':
+    'Changes have been made since the last exported report, on {date}.',
 
   // ---------- Comptes ----------
   'Gestion des accès': 'Access management',
