@@ -109,6 +109,10 @@ export const api = {
   getReportVersions: (studentId) => request(`/students/${studentId}/report-versions`),
   getReportVersion: (versionId) => request(`/report-versions/${versionId}`),
 
+  getNetworkSettings: () => request('/network-settings'),
+  setNetworkSettings: (lanSharingEnabled) =>
+    request('/network-settings', { method: 'POST', body: JSON.stringify({ lanSharingEnabled }) }),
+
   downloadCombinedReportPdf: async (lang = 'fr') => {
     const res = await fetch(`/api/reports/pdf?lang=${lang}`)
     if (!res.ok) {

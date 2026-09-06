@@ -67,6 +67,175 @@ function NewEaForm({ onCreated }) {
   )
 }
 
+function NewCollaboratorForm({ onCreated }) {
+  const { t } = useLanguage()
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [nomComplet, setNomComplet] = useState('')
+  const [titre, setTitre] = useState('')
+  const [error, setError] = useState(null)
+  const [saving, setSaving] = useState(false)
+
+  const submit = async (e) => {
+    e.preventDefault()
+    setError(null)
+    if (username.trim().length < 3) {
+      setError(t("Le nom d'utilisateur doit contenir au moins 3 caractères."))
+      return
+    }
+    if (password.length < 8) {
+      setError(t('Le mot de passe doit contenir au moins 8 caractères.'))
+      return
+    }
+    if (!nomComplet.trim()) {
+      setError(t('Le nom complet est requis.'))
+      return
+    }
+    setSaving(true)
+    try {
+      await auth.createEnseignantAccount(username.trim(), password, nomComplet.trim(), titre || undefined)
+      setUsername('')
+      setPassword('')
+      setNomComplet('')
+      setTitre('')
+      onCreated()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <form className="card new-student-form" onSubmit={submit}>
+      <div className="card-header">
+        <p className="student-name" style={{ cursor: 'default' }}>{t('Ajouter un enseignant collaborateur')}</p>
+      </div>
+      <p className="backup-hint">
+        {t("Pour un enseignant-ressource ou tout autre collègue qui doit pouvoir consulter et modifier les mêmes PEI (pas seulement ajouter des notes comme un compte EA). Ce compte a les mêmes droits complets que le vôtre.")}
+      </p>
+      {error && <div className="alert alert-urgent" style={{ marginBottom: 14 }}>{error}</div>}
+      <div className="form-row" style={{ flexWrap: 'wrap' }}>
+        <input
+          className="text-input"
+          placeholder={t('Nom complet')}
+          value={nomComplet}
+          onChange={(e) => setNomComplet(e.target.value)}
+        />
+        <select className="text-input" value={titre} onChange={(e) => setTitre(e.target.value)}>
+          <option value="">{t('Titre — non précisé')}</option>
+          {TEACHER_TITLES.map((tt) => (
+            <option key={tt.value} value={tt.value}>{t(tt.label)}</option>
+          ))}
+        </select>
+      </div>
+      <div className="form-row" style={{ marginTop: 10, flexWrap: 'wrap' }}>
+        <input
+          className="text-input"
+          placeholder={t("Nom d'utilisateur")}
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+        />
+        <input
+          className="text-input"
+          type="password"
+          placeholder={t('Mot de passe (8 caractères min.)')}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+      </div>
+      <div className="form-row" style={{ marginTop: 10 }}>
+        <button type="submit" className="btn btn-primary" disabled={saving}>
+          {saving ? t('Création...') : t('Créer le compte')}
+        </button>
+      </div>
+    </form>
+  )
+}
+
+function NetworkSettingsPanel() {
+  const { t } = useLanguage()
+  const [settings, setSettings] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+  const [justChanged, setJustChanged] = useState(false)
+
+  const load = () => {
+    api.getNetworkSettings().then(setSettings).catch((e) => setError(e.message))
+  }
+
+  useEffect(load, [])
+
+  const toggle = async () => {
+    setSaving(true)
+    setError(null)
+    try {
+      const updated = await api.setNetworkSettings(!settings.lanSharingEnabled)
+      setSettings(updated)
+      setJustChanged(true)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="card">
+      <div className="card-header">
+        <p className="student-name" style={{ fontSize: 15, cursor: 'default' }}>{t('Réseau local')}</p>
+      </div>
+
+      <p className="backup-hint">
+        {t("Permet à un collègue sur le même réseau Wi-Fi de l'école (ex. un enseignant-ressource) d'ouvrir Repère dans son navigateur, sans rien installer. À n'activer que sur le réseau de l'école — jamais sur un réseau public.")}
+      </p>
+
+      {error && <div className="alert alert-urgent" style={{ marginBottom: 12 }}>{error}</div>}
+      {!settings && <p className="page-date" style={{ margin: 0 }}>{t('Chargement…')}</p>}
+
+      {settings && (
+        <>
+          <div className="form-row" style={{ alignItems: 'center', gap: 10 }}>
+            <input
+              type="checkbox"
+              id="lan-sharing-toggle"
+              checked={settings.lanSharingEnabled}
+              onChange={toggle}
+              disabled={saving}
+            />
+            <label htmlFor="lan-sharing-toggle">{t("Partager sur le réseau local de l'école")}</label>
+          </div>
+
+          {settings.lanSharingEnabled && (
+            <div style={{ marginTop: 14 }}>
+              {settings.lanAddresses.length > 0 ? (
+                <>
+                  <p className="page-date" style={{ margin: '0 0 4px' }}>{t('Adresse à communiquer au collègue')}</p>
+                  {settings.lanAddresses.map((addr) => (
+                    <p key={addr} style={{ margin: '0 0 4px', fontFamily: 'var(--font-mono)' }}>
+                      {`http://${addr}:${settings.port}`}
+                    </p>
+                  ))}
+                </>
+              ) : (
+                <p className="page-date" style={{ margin: 0 }}>
+                  {t("Aucune adresse réseau détectée pour l'instant — vérifiez que cet ordinateur est bien connecté au réseau de l'école.")}
+                </p>
+              )}
+            </div>
+          )}
+
+          {justChanged && (
+            <div className="alert alert-warning" style={{ marginTop: 14 }}>
+              {t('Fermez complètement Repère puis rouvrez-le pour appliquer ce changement.')}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
 const KEY_PLACEHOLDERS = {
   anthropic: 'sk-ant-...',
   mistral: 'Clé API Mistral...',
@@ -399,6 +568,10 @@ export default function AccountsAdmin() {
       <TeacherProfilePanel />
 
       <NewEaForm onCreated={load} />
+
+      <NewCollaboratorForm onCreated={load} />
+
+      <NetworkSettingsPanel />
 
       <AiSettingsPanel />
     </div>

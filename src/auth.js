@@ -22,6 +22,8 @@ export const auth = {
   listAccounts: () => request('/auth/accounts'),
   createEaAccount: (username, password) =>
     request('/auth/create-ea', { method: 'POST', body: JSON.stringify({ username, password }) }),
+  createEnseignantAccount: (username, password, nomComplet, titre) =>
+    request('/auth/create-enseignant', { method: 'POST', body: JSON.stringify({ username, password, nomComplet, titre }) }),
 
   getProfile: () => request('/auth/profile'),
   updateProfile: (data) => request('/auth/profile', { method: 'PATCH', body: JSON.stringify(data) }),

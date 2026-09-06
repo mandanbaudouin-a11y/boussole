@@ -74,9 +74,13 @@ export function getUserProfile(id) {
   return row ? toUserProfileDTO(row) : null
 }
 
-// Il n'existe qu'un seul compte enseignant par installation (créé une fois à
-// la configuration initiale) — utile pour l'en-tête du rapport PDF, qui doit
-// afficher l'école/division peu importe quel rôle a généré le rapport.
+// Plusieurs comptes "enseignant" peuvent exister (compte principal créé à la
+// configuration initiale, plus d'éventuels collaborateurs via
+// /create-enseignant, ex. un enseignant-ressource). École/division sont une
+// information d'établissement partagée : peu importe lequel des comptes est
+// renvoyé ici, ces deux champs sont censés être identiques pour tous. Ne pas
+// utiliser cette fonction pour attribuer une action à une personne précise
+// (voir getUserProfile(req.session.userId) à la place, ex. reportHeaderOptions).
 export function getTeacherProfile() {
   const row = db.prepare("SELECT * FROM users WHERE role = 'enseignant' LIMIT 1").get()
   return row ? toUserProfileDTO(row) : null

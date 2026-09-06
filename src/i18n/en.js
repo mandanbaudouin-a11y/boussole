@@ -246,6 +246,18 @@ export const en = {
   'Mot de passe (8 caractères min.)': 'Password (min. 8 characters)',
   'Mon profil': 'My profile',
   "Paramètres IA": 'AI settings',
+  'Ajouter un enseignant collaborateur': 'Add a collaborating teacher',
+  "Pour un enseignant-ressource ou tout autre collègue qui doit pouvoir consulter et modifier les mêmes PEI (pas seulement ajouter des notes comme un compte EA). Ce compte a les mêmes droits complets que le vôtre.":
+    "For a resource teacher or any other colleague who needs to view and edit the same IEPs (not just add notes like an EA account). This account has the same full rights as yours.",
+  'Réseau local': 'Local network',
+  "Permet à un collègue sur le même réseau Wi-Fi de l'école (ex. un enseignant-ressource) d'ouvrir Repère dans son navigateur, sans rien installer. À n'activer que sur le réseau de l'école — jamais sur un réseau public.":
+    "Lets a colleague on the same school Wi-Fi (e.g. a resource teacher) open Repère in their browser, with nothing to install. Only enable this on the school's own network — never on a public network.",
+  "Partager sur le réseau local de l'école": "Share on the school's local network",
+  'Adresse à communiquer au collègue': 'Address to share with your colleague',
+  "Aucune adresse réseau détectée pour l'instant — vérifiez que cet ordinateur est bien connecté au réseau de l'école.":
+    "No network address detected yet — check that this computer is connected to the school's network.",
+  'Fermez complètement Repère puis rouvrez-le pour appliquer ce changement.':
+    'Close Repère completely and reopen it for this change to take effect.',
 
   // ---------- Sauvegarde ----------
   'Exporter une sauvegarde': 'Export a backup',

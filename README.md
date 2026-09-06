@@ -6,7 +6,9 @@ Prototype MVP pour la gestion des PEI (plans d'enseignement individualises), app
 - **Tableau de bord** — liste des eleves et coche quotidienne des objectifs (EA et enseignant) ; ajout/suppression d'eleves, ajout/modification/suppression d'objectifs, import de PEI (PDF/Word) et sauvegarde/restauration des donnees reserves a l'enseignant
 - **Fiche eleve** — objectifs, progres sur 4 semaines, notes recentes (ajout de note ouvert a l'EA ; modification des infos de l'eleve et des objectifs reservee a l'enseignant)
 - **Rapport** — resume genere automatiquement a partir des donnees de suivi, pret pour une rencontre parents-ecole
-- **Comptes** (enseignant uniquement) — liste des comptes et creation de comptes EA
+- **Comptes** (enseignant uniquement) — liste des comptes, creation de comptes EA et d'autres comptes
+  enseignant (ex. un enseignant-ressource collaborant sur les memes PEI), reglage de partage sur le reseau
+  local de l'ecole
 
 ## Import de PEI (PDF / Word)
 Le bouton **Importer un PEI** du tableau de bord accepte un fichier PDF ou Word (`.docx`). Le texte est
@@ -35,10 +37,12 @@ de son propre compte.
 ## Authentification et roles
 Deux roles : **enseignant** (tous les droits) et **EA** (educateur/educatrice specialise-e). Au tout
 premier lancement (aucun compte enseignant en base), l'application affiche un ecran de **creation de
-compte enseignant** (nom d'utilisateur + mot de passe, 8 caracteres minimum). C'est ensuite l'enseignant
-qui cree le ou les comptes EA depuis l'onglet **Comptes** (visible seulement pour son role). L'ecran de
-**connexion** propose un selecteur "Enseignant / EA" ; il doit correspondre au role reel du compte, sinon
-la connexion est refusee avec un message explicite.
+compte enseignant** (nom d'utilisateur + mot de passe, 8 caracteres minimum). C'est ensuite n'importe quel
+compte enseignant qui peut creer d'autres comptes depuis l'onglet **Comptes** (visible seulement pour ce
+role) : des comptes EA, ou d'autres comptes enseignant a droits complets (ex. pour un enseignant-ressource
+qui doit consulter et modifier les memes PEI, pas seulement ajouter des notes). L'ecran de **connexion**
+propose un selecteur "Enseignant / EA" ; il doit correspondre au role reel du compte, sinon la connexion
+est refusee avec un message explicite.
 
 Droits de l'EA : voir tous les eleves et leurs objectifs, ajouter des notes de suivi. L'EA ne peut pas
 ajouter/supprimer des eleves, ni ajouter/modifier/supprimer les objectifs (texte, niveau de satisfaction),
@@ -47,6 +51,19 @@ l'API (403) meme si elles etaient tentees hors de l'interface. (L'ancienne case 
 aujourd'hui", que l'EA pouvait basculer independamment du niveau de satisfaction, a ete retiree — elle
 faisait doublon avec le badge de statut et son etiquette "aujourd'hui" ne correspondait pas a son
 comportement reel, qui ne se reinitialisait jamais.)
+
+Un second compte enseignant a exactement les memes droits que le premier, y compris la gestion des
+comptes — il n'existe pas de role intermediaire "modifie les PEI mais pas les comptes".
+
+## Reseau local (enseignant uniquement)
+Par defaut, le serveur n'ecoute que sur cet ordinateur (`127.0.0.1`) : aucune autre machine, meme sur le
+meme reseau Wi-Fi, ne peut y acceder. L'onglet **Comptes** propose un reglage **Reseau local** pour
+partager l'application avec un collegue de l'ecole (ex. un enseignant-ressource travaillant en
+collaboration) : une fois active, le collegue ouvre simplement l'adresse affichee
+(`http://<adresse-de-cet-ordinateur>:3001`) dans son propre navigateur, sans rien installer, et se connecte
+avec son propre compte enseignant. Le changement ne prend effet qu'au prochain demarrage de l'application
+(fermer completement Repère puis le rouvrir). A n'activer que sur le reseau de confiance de l'ecole,
+jamais sur un reseau public.
 
 Le mot de passe est hache avec `bcrypt` (12 rounds) avant d'etre stocke — jamais en clair. La session
 repose sur un cookie httpOnly (non lisible en JavaScript) et se **prolonge a chaque requete** ; sans

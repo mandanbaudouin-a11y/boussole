@@ -39,3 +39,12 @@ export async function createEA(baseUrl, teacherCookie, overrides = {}) {
   })
   return res
 }
+
+export async function createEnseignant(baseUrl, teacherCookie, overrides = {}) {
+  const res = await fetch(`${baseUrl}/api/auth/create-enseignant`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Cookie: teacherCookie },
+    body: JSON.stringify({ username: 'ressource', password: 'test1234', nomComplet: 'Nadia Ressource', ...overrides }),
+  })
+  return res
+}

@@ -42,6 +42,7 @@ import {
   getTeacherProfile,
   updateProfile,
 } from './auth.js'
+import { isLanSharingEnabled, setLanSharingEnabled, getLanAddresses } from './networkConfig.js'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -188,11 +189,12 @@ function notFound(res, what) {
 }
 
 // ---------- Authentification ----------
-// Deux rôles : enseignant (compte principal, tous les droits) et EA (peut
-// cocher les objectifs et ajouter des notes, mais pas gérer les élèves ni le
-// texte des objectifs). Tant qu'aucun compte enseignant n'existe, /setup
-// permet de le créer (premier lancement) ; c'est ensuite l'enseignant qui
-// crée le ou les comptes EA via /create-ea.
+// Deux rôles : enseignant (tous les droits) et EA (peut consulter et ajouter
+// des notes, mais pas gérer les élèves ni le contenu du PEI). Tant qu'aucun
+// compte enseignant n'existe, /setup permet de créer le premier (premier
+// lancement) ; ensuite, n'importe quel compte enseignant peut créer d'autres
+// comptes EA (/create-ea) ou enseignant (/create-enseignant — ex. pour un
+// enseignant-ressource travaillant en collaboration sur les mêmes PEI).
 
 app.get('/api/auth/status', (req, res) => {
   const authenticated = !!(req.session && req.session.userId)
@@ -309,6 +311,35 @@ app.post('/api/auth/create-ea', requireRole('enseignant'), (req, res) => {
   res.status(201).json({ username: user.username, role: user.role })
 })
 
+// Second compte "enseignant" (droits complets), pour un enseignant-ressource
+// ou tout autre collaborateur travaillant sur les mêmes PEI. Comme un compte
+// EA peut déjà être créé par n'importe quel compte enseignant, ce nouveau
+// compte a la même portée que le premier (y compris la gestion des autres
+// comptes) — il n'existe pas de rôle intermédiaire "modifie les PEI mais pas
+// les comptes" dans ce modèle de permissions.
+app.post('/api/auth/create-enseignant', requireRole('enseignant'), (req, res) => {
+  const username = (req.body.username || '').trim()
+  const password = req.body.password || ''
+  const nomComplet = (req.body.nomComplet || '').trim()
+  if (username.length < 3) {
+    return res.status(400).json({ error: "Le nom d'utilisateur doit contenir au moins 3 caractères." })
+  }
+  if (password.length < 8) {
+    return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 8 caractères.' })
+  }
+  if (!nomComplet) {
+    return res.status(400).json({ error: 'Le nom complet est requis.' })
+  }
+  if (findUserByUsername(username)) {
+    return res.status(409).json({ error: 'Ce nom d\'utilisateur est déjà pris.' })
+  }
+  if (req.body.titre !== undefined && req.body.titre !== '' && !TEACHER_TITLES.includes(req.body.titre)) {
+    return res.status(400).json({ error: 'Titre invalide.' })
+  }
+  const user = createAccount(username, password, 'enseignant', { nomComplet, titre: req.body.titre || null })
+  res.status(201).json({ username: user.username, role: user.role })
+})
+
 app.get('/api/auth/profile', requireRole('enseignant'), (req, res) => {
   res.json(getUserProfile(req.session.userId))
 })
@@ -329,6 +360,30 @@ app.patch('/api/auth/profile', requireRole('enseignant'), (req, res) => {
     titre: req.body.titre,
   })
   res.json(updated)
+})
+
+// ---------- Réseau local ----------
+// Désactivé par défaut : le serveur n'écoute que sur 127.0.0.1 (voir start()
+// plus bas). Permet à un collègue sur le même réseau Wi-Fi de l'école
+// (ex. un enseignant-ressource travaillant en collaboration) d'ouvrir
+// l'application dans un navigateur sans rien installer. Le changement ne
+// prend effet qu'au prochain démarrage de l'application (le port d'écoute
+// ne peut pas être rouvert sur une autre interface sans redémarrer).
+app.get('/api/network-settings', requireRole('enseignant'), (req, res) => {
+  res.json({
+    lanSharingEnabled: isLanSharingEnabled(),
+    lanAddresses: getLanAddresses(),
+    port: DEFAULT_PORT,
+  })
+})
+
+app.post('/api/network-settings', requireRole('enseignant'), (req, res) => {
+  setLanSharingEnabled(!!req.body.lanSharingEnabled)
+  res.json({
+    lanSharingEnabled: isLanSharingEnabled(),
+    lanAddresses: getLanAddresses(),
+    port: DEFAULT_PORT,
+  })
 })
 
 // Toutes les routes /api/* suivantes exigent une session active, sauf /api/auth/*.
@@ -764,11 +819,17 @@ app.post('/api/students/:id/notes', requireRole('enseignant', 'ea'), (req, res) 
 // installation) peu importe quel rôle génère le rapport.
 
 function reportHeaderOptions(req) {
+  // École/division viennent du premier compte enseignant (information
+  // partagée par toute l'école, peu importe qui génère le rapport). En
+  // revanche "généré par" doit refléter la personne réellement connectée,
+  // pas toujours le tout premier compte créé — plusieurs comptes enseignant
+  // (ex. enseignant titulaire + enseignant-ressource) peuvent coexister.
   const teacher = getTeacherProfile()
+  const currentUser = getUserProfile(req.session.userId)
   return {
     ecole: teacher?.ecole || null,
     divisionScolaire: teacher?.divisionScolaire || null,
-    generatedBy: (req.session.role === 'enseignant' && teacher?.nomComplet) || req.session.username || null,
+    generatedBy: currentUser?.nomComplet || req.session.username || null,
     lang: req.query.lang === 'en' ? 'en' : 'fr',
   }
 }
@@ -1192,13 +1253,16 @@ const DEFAULT_PORT = process.env.PORT || 3001
 
 export function start(port = DEFAULT_PORT) {
   return new Promise((resolve, reject) => {
-    // N'écoute que sur cette machine (127.0.0.1) : sans ça, Node ecoute par
-    // defaut sur toutes les interfaces reseau, ce qui rend l'ecran de
-    // connexion joignable par n'importe qui sur le meme reseau Wi-Fi, pas
-    // seulement sur cet ordinateur.
+    // Par défaut, n'écoute que sur cette machine (127.0.0.1) : sans ça, Node
+    // écoute par défaut sur toutes les interfaces réseau, ce qui rend l'écran
+    // de connexion joignable par n'importe qui sur le même réseau Wi-Fi, pas
+    // seulement sur cet ordinateur. Le partage sur le réseau local (réglage
+    // /api/network-settings, désactivé par défaut) ouvre volontairement cette
+    // porte pour permettre l'accès depuis un autre appareil de l'école.
+    const host = isLanSharingEnabled() ? '0.0.0.0' : '127.0.0.1'
     const server = app
-      .listen(port, '127.0.0.1', () => {
-        console.log(`API Repère sur http://localhost:${port}`)
+      .listen(port, host, () => {
+        console.log(`API Repère sur http://localhost:${port}${host === '0.0.0.0' ? ' (aussi accessible sur le reseau local)' : ''}`)
         resolve(server)
       })
       .on('error', reject)
