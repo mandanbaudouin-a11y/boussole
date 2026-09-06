@@ -1,7 +1,31 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { TEACHER_TITLES } from '../teacherTitles'
 import { useLanguage } from '../i18n/LanguageContext'
 import LanguageToggle from './LanguageToggle'
+
+function PasswordField({ id, value, onChange, show, onToggleShow, autoComplete, style }) {
+  const { t } = useLanguage()
+  return (
+    <div className="password-field-wrap" style={style}>
+      <input
+        id={id}
+        type={show ? 'text' : 'password'}
+        className="text-input"
+        value={value}
+        onChange={onChange}
+        autoComplete={autoComplete}
+      />
+      <button
+        type="button"
+        className="password-toggle-btn"
+        onClick={onToggleShow}
+        aria-label={show ? t('Masquer le mot de passe') : t('Afficher le mot de passe')}
+      >
+        {show ? t('Masquer') : t('Afficher')}
+      </button>
+    </div>
+  )
+}
 
 export default function AuthScreen({ mode, onSubmit, message }) {
   const { t } = useLanguage()
@@ -12,6 +36,10 @@ export default function AuthScreen({ mode, onSubmit, message }) {
   const [role, setRole] = useState('enseignant')
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [lockoutSeconds, setLockoutSeconds] = useState(0)
+  const lockoutIntervalRef = useRef(null)
 
   const [nomComplet, setNomComplet] = useState('')
   const [courriel, setCourriel] = useState('')
@@ -21,6 +49,27 @@ export default function AuthScreen({ mode, onSubmit, message }) {
   const [anneeScolaire, setAnneeScolaire] = useState('')
   const [titre, setTitre] = useState('')
   const [laipvpAcknowledged, setLaipvpAcknowledged] = useState(false)
+
+  useEffect(() => {
+    return () => {
+      if (lockoutIntervalRef.current) clearInterval(lockoutIntervalRef.current)
+    }
+  }, [])
+
+  const startLockoutCountdown = (seconds) => {
+    if (lockoutIntervalRef.current) clearInterval(lockoutIntervalRef.current)
+    setLockoutSeconds(seconds)
+    lockoutIntervalRef.current = setInterval(() => {
+      setLockoutSeconds((s) => {
+        if (s <= 1) {
+          clearInterval(lockoutIntervalRef.current)
+          lockoutIntervalRef.current = null
+          return 0
+        }
+        return s - 1
+      })
+    }, 1000)
+  }
 
   const submit = async (e) => {
     e.preventDefault()
@@ -65,10 +114,17 @@ export default function AuthScreen({ mode, onSubmit, message }) {
         await onSubmit(username.trim(), password, role)
       }
     } catch (err) {
+      if (err.retryAfterSeconds) {
+        startLockoutCountdown(err.retryAfterSeconds)
+      }
       setError(err.message)
       setLoading(false)
     }
   }
+
+  const displayError = lockoutSeconds > 0
+    ? t('Trop de tentatives. Réessayez dans {n} secondes.', { n: lockoutSeconds })
+    : error
 
   return (
     <div className="auth-shell">
@@ -106,7 +162,7 @@ export default function AuthScreen({ mode, onSubmit, message }) {
         </p>
 
         {message && <div className="alert alert-warning" style={{ marginBottom: 16 }}>{message}</div>}
-        {error && <div className="alert alert-urgent" style={{ marginBottom: 16 }}>{error}</div>}
+        {displayError && <div className="alert alert-urgent" style={{ marginBottom: 16 }}>{displayError}</div>}
 
         {!isSetup && (
           <>
@@ -142,27 +198,27 @@ export default function AuthScreen({ mode, onSubmit, message }) {
         />
 
         <label className="auth-label" htmlFor="password">{t('Mot de passe')}</label>
-        <input
+        <PasswordField
           id="password"
-          type="password"
-          className="text-input"
-          style={{ width: '100%', marginBottom: isSetup ? 14 : 22 }}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          show={showPassword}
+          onToggleShow={() => setShowPassword((v) => !v)}
           autoComplete={isSetup ? 'new-password' : 'current-password'}
+          style={{ marginBottom: isSetup ? 14 : 22 }}
         />
 
         {isSetup && (
           <>
             <label className="auth-label" htmlFor="confirm-password">{t('Confirmer le mot de passe')}</label>
-            <input
+            <PasswordField
               id="confirm-password"
-              type="password"
-              className="text-input"
-              style={{ width: '100%', marginBottom: 14 }}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
+              show={showConfirmPassword}
+              onToggleShow={() => setShowConfirmPassword((v) => !v)}
               autoComplete="new-password"
+              style={{ marginBottom: 14 }}
             />
 
             <label className="auth-label" htmlFor="nom-complet">{t('Nom complet')}</label>
@@ -258,7 +314,7 @@ export default function AuthScreen({ mode, onSubmit, message }) {
           </>
         )}
 
-        <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
+        <button type="submit" className="btn btn-primary btn-block" disabled={loading || lockoutSeconds > 0}>
           {loading ? t('Veuillez patienter...') : isSetup ? t('Créer le compte') : t('Se connecter')}
         </button>
         </form>

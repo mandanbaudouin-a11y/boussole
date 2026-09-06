@@ -782,6 +782,32 @@ body {
 
 .back-link:hover { color: var(--ink); }
 
+/* ---------- Champ mot de passe avec bouton afficher/masquer ---------- */
+.password-field-wrap {
+  position: relative;
+}
+
+.password-field-wrap .text-input {
+  padding-right: 68px;
+  width: 100%;
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  font-size: 12.5px;
+  font-family: var(--font-body);
+  color: var(--ink-soft);
+}
+
+.password-toggle-btn:hover { color: var(--ink); }
+
 /* ---------- Navigation entre élèves ---------- */
 .student-nav-row {
   display: flex;

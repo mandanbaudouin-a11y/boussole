@@ -5,7 +5,9 @@ async function request(path, options) {
   })
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
-    throw new Error(body.error || `Erreur ${res.status}`)
+    const err = new Error(body.error || `Erreur ${res.status}`)
+    if (body.retryAfterSeconds) err.retryAfterSeconds = body.retryAfterSeconds
+    throw err
   }
   if (res.status === 204) return null
   return res.json()

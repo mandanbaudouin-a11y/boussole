@@ -1,12 +1,12 @@
 {
   "name": "repere",
   "private": true,
-  "version": "0.5.0",
+  "version": "0.5.1",
   "type": "module",
   "main": "electron/main.js",
   "scripts": {
     "dev": "concurrently -n api,web -c green,cyan \"npm:server\" \"vite\"",
-    "server": "node server/index.js",
+    "server": "PORT=3001 node server/index.js",
     "test": "vitest run",
     "build": "vite build",
     "preview": "vite preview",

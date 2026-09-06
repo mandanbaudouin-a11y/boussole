@@ -385,7 +385,8 @@ app.post('/api/auth/login', (req, res) => {
 
   const wait = isLockedOut(username)
   if (wait > 0) {
-    return res.status(429).json({ error: `Trop de tentatives. Réessayez dans ${Math.ceil(wait / 1000)} secondes.` })
+    const retryAfterSeconds = Math.ceil(wait / 1000)
+    return res.status(429).json({ error: `Trop de tentatives. Réessayez dans ${retryAfterSeconds} secondes.`, retryAfterSeconds })
   }
 
   const user = findUserByUsername(username)
