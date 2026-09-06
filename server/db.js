@@ -209,6 +209,18 @@ db.exec(`
     generated_by TEXT,
     generated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+
+  -- Historique des versions du rapport PEI : une ligne par export PDF, avec
+  -- une copie complète des données de l'élève au moment de l'export
+  -- (content_snapshot) pour pouvoir reconstituer exactement ce qui a été
+  -- remis, même si le PEI change ensuite dans l'app (document vivant).
+  CREATE TABLE IF NOT EXISTS report_versions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    student_id TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    exported_at TEXT NOT NULL DEFAULT (datetime('now')),
+    exported_by TEXT,
+    content_snapshot TEXT NOT NULL
+  );
 `)
 
 // Migration : les bases créées avant l'ajout du rôle EA n'ont pas la colonne.

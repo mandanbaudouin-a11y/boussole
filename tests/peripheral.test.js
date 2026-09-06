@@ -272,3 +272,47 @@ describe('sauvegarde et restauration', () => {
     expect(res.status).toBe(403)
   })
 })
+
+describe('historique de versions du rapport PEI', () => {
+  it('enregistre une version a chaque export du rapport individuel', async () => {
+    db.exec('DELETE FROM report_versions')
+    const res = await fetch(`${baseUrl}/api/students/${studentId}/report.pdf`, authed(teacherCookie))
+    expect(res.status).toBe(200)
+
+    const versions = db.prepare('SELECT * FROM report_versions WHERE student_id = ?').all(studentId)
+    expect(versions).toHaveLength(1)
+    expect(versions[0].exported_by).toBe('Baudouin Mandan')
+    const snapshot = JSON.parse(versions[0].content_snapshot)
+    expect(snapshot.id).toBe(studentId)
+    expect(snapshot.name).toBe('Léa Tremblay')
+  })
+
+  it('enregistre une version par eleve lors de l export combine', async () => {
+    db.exec('DELETE FROM report_versions')
+    const res = await fetch(`${baseUrl}/api/reports/pdf`, authed(teacherCookie))
+    expect(res.status).toBe(200)
+
+    const versions = db.prepare('SELECT * FROM report_versions WHERE student_id = ?').all(studentId)
+    expect(versions).toHaveLength(1)
+  })
+
+  it('conserve le contenu exact au moment de l export meme si le PEI change ensuite', async () => {
+    db.exec('DELETE FROM report_versions')
+    await fetch(`${baseUrl}/api/students/${studentId}/report.pdf`, authed(teacherCookie))
+
+    await fetch(`${baseUrl}/api/students/${studentId}`, authed(teacherCookie, { method: 'PATCH', body: JSON.stringify({ name: 'Nom modifie apres export' }) }))
+
+    const versions = db.prepare('SELECT * FROM report_versions WHERE student_id = ?').all(studentId)
+    const snapshot = JSON.parse(versions[0].content_snapshot)
+    expect(snapshot.name).toBe('Léa Tremblay')
+  })
+
+  it("chaque export cree une nouvelle ligne distincte (l'historique s'accumule)", async () => {
+    db.exec('DELETE FROM report_versions')
+    await fetch(`${baseUrl}/api/students/${studentId}/report.pdf`, authed(teacherCookie))
+    await fetch(`${baseUrl}/api/students/${studentId}/report.pdf`, authed(teacherCookie))
+
+    const versions = db.prepare('SELECT * FROM report_versions WHERE student_id = ?').all(studentId)
+    expect(versions).toHaveLength(2)
+  })
+})

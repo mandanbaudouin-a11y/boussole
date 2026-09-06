@@ -99,6 +99,9 @@ const getTransitionGoalsForStudent = db.prepare(
 const getTransitionStepsForGoal = db.prepare(
   'SELECT id, description FROM transition_steps WHERE transition_goal_id = ? ORDER BY position ASC, rowid ASC'
 )
+const insertReportVersion = db.prepare(
+  'INSERT INTO report_versions (student_id, exported_by, content_snapshot) VALUES (?, ?, ?)'
+)
 
 function toTransitionGoalDTO(g) {
   return { ...g, steps: getTransitionStepsForGoal.all(g.id) }
@@ -747,10 +750,17 @@ function reportHeaderOptions(req) {
   }
 }
 
+function recordReportVersion(dto, req) {
+  const exportedBy = reportHeaderOptions(req).generatedBy
+  insertReportVersion.run(dto.id, exportedBy, JSON.stringify(dto))
+}
+
 app.get('/api/students/:id/report.pdf', (req, res) => {
   const row = getStudentRow.get(req.params.id)
   if (!row) return notFound(res, 'Élève')
-  streamStudentReportPdf(res, toStudentDTO(row), reportHeaderOptions(req))
+  const dto = toStudentDTO(row)
+  recordReportVersion(dto, req)
+  streamStudentReportPdf(res, dto, reportHeaderOptions(req))
 })
 
 app.get('/api/reports/pdf', (req, res) => {
@@ -758,7 +768,9 @@ app.get('/api/reports/pdf', (req, res) => {
   if (rows.length === 0) {
     return res.status(400).json({ error: 'Aucun élève à exporter.' })
   }
-  streamCombinedReportPdf(res, rows.map(toStudentDTO), reportHeaderOptions(req))
+  const dtos = rows.map(toStudentDTO)
+  for (const dto of dtos) recordReportVersion(dto, req)
+  streamCombinedReportPdf(res, dtos, reportHeaderOptions(req))
 })
 
 // ---------- Rédaction de rapport par IA ----------
