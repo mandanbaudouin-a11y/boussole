@@ -112,6 +112,21 @@ db.exec(`
     category TEXT NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS adaptations_library (
+    id TEXT PRIMARY KEY,
+    label TEXT NOT NULL,
+    subtype TEXT NOT NULL
+  );
+
+  -- field vaut 'forces' ou 'besoins' : une seule table pour les deux, comme
+  -- les deux champs partagent la meme UI (suggestions cliquables au-dessus
+  -- d'un texte libre), plutot que deux tables identiques.
+  CREATE TABLE IF NOT EXISTS forces_besoins_library (
+    id TEXT PRIMARY KEY,
+    label TEXT NOT NULL,
+    field TEXT NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS goal_strategies (
     id TEXT PRIMARY KEY,
     goal_id TEXT NOT NULL REFERENCES goals(id) ON DELETE CASCADE,
@@ -292,6 +307,94 @@ const strategyLibraryCount = db.prepare('SELECT COUNT(*) AS n FROM strategies_li
 
 if (strategyLibraryCount === 0) {
   seedStrategyLibrary()
+}
+
+const adaptationsLibraryCount = db.prepare('SELECT COUNT(*) AS n FROM adaptations_library').get().n
+
+if (adaptationsLibraryCount === 0) {
+  seedAdaptationsLibrary()
+}
+
+const forcesBesoinsLibraryCount = db.prepare('SELECT COUNT(*) AS n FROM forces_besoins_library').get().n
+
+if (forcesBesoinsLibraryCount === 0) {
+  seedForcesBesoinsLibrary()
+}
+
+function seedAdaptationsLibrary() {
+  const insertAdaptation = db.prepare('INSERT INTO adaptations_library (id, label, subtype) VALUES (?, ?, ?)')
+  const adaptations = [
+    { subtype: 'pedagogique', label: 'Temps supplémentaire aux évaluations' },
+    { subtype: 'pedagogique', label: 'Consignes lues à voix haute' },
+    { subtype: 'pedagogique', label: 'Reformulation des consignes en phrases courtes' },
+    { subtype: 'pedagogique', label: 'Bande de vocabulaire ou lexique visuel au pupitre' },
+    { subtype: 'pedagogique', label: "Utilisation d'un surligneur pour cibler l'information essentielle" },
+    { subtype: 'pedagogique', label: 'Réduction du nombre de choix de réponses (questions à choix multiples)' },
+    { subtype: 'pedagogique', label: 'Accès à une calculatrice pour les évaluations de mathématiques' },
+    { subtype: 'pedagogique', label: "Utilisation d'un correcteur orthographique ou d'un logiciel de dictée" },
+    { subtype: 'pedagogique', label: 'Copie des notes de cours fournie plutôt que prise de notes' },
+    { subtype: 'pedagogique', label: 'Pauses fréquentes pendant les évaluations longues' },
+    { subtype: 'pedagogique', label: "Modèles ou exemples fournis avant une nouvelle tâche" },
+    { subtype: 'pedagogique', label: 'Enregistrement audio des consignes disponible' },
+    { subtype: 'environnementale', label: "Placement préférentiel près de l'enseignant" },
+    { subtype: 'environnementale', label: 'Réduction des stimuli visuels ou auditifs au pupitre' },
+    { subtype: 'environnementale', label: 'Accès à un casque antibruit' },
+    { subtype: 'environnementale', label: 'Horaire visuel des transitions affiché' },
+    { subtype: 'environnementale', label: 'Espace de travail isolé disponible au besoin' },
+    { subtype: 'environnementale', label: 'Signal visuel convenu pour demander une pause' },
+    { subtype: 'environnementale', label: "Accès à un ballon d'exercice ou coussin sensoriel comme siège" },
+    { subtype: 'environnementale', label: "Trajet prévisible prévu pour les déplacements dans l'école" },
+    { subtype: 'environnementale', label: 'Accès prioritaire au vestiaire pour éviter la cohue' },
+    { subtype: 'environnementale', label: 'Zone calme désignée pour la régulation émotionnelle' },
+    { subtype: 'evaluation', label: 'Temps supplémentaire de 50 % aux évaluations' },
+    { subtype: 'evaluation', label: 'Évaluation dans un local calme séparé' },
+    { subtype: 'evaluation', label: 'Réponses orales acceptées plutôt qu\'écrites' },
+    { subtype: 'evaluation', label: "Fractionnement de l'évaluation en plusieurs séances" },
+    { subtype: 'evaluation', label: "Grille d'évaluation adaptée communiquée à l'avance" },
+    { subtype: 'evaluation', label: "Utilisation d'un support visuel pendant l'évaluation" },
+    { subtype: 'evaluation', label: "Reformulation des questions au besoin par l'enseignant" },
+    { subtype: 'evaluation', label: 'Présentation orale plutôt qu\'écrite acceptée' },
+    { subtype: 'evaluation', label: "Correction axée sur le contenu plutôt que l'orthographe ou la grammaire" },
+    { subtype: 'evaluation', label: 'Accès à un ordinateur pour rédiger les réponses' },
+  ]
+  const run = db.transaction(() => {
+    for (const a of adaptations) insertAdaptation.run(randomUUID(), a.label, a.subtype)
+  })
+  run()
+}
+
+function seedForcesBesoinsLibrary() {
+  const insertEntry = db.prepare('INSERT INTO forces_besoins_library (id, label, field) VALUES (?, ?, ?)')
+  const entries = [
+    { field: 'forces', label: "S'exprime avec aisance à l'oral" },
+    { field: 'forces', label: 'Fait preuve de curiosité et pose des questions pertinentes' },
+    { field: 'forces', label: 'Persévère devant une tâche difficile' },
+    { field: 'forces', label: 'Travaille bien en collaboration avec ses pairs' },
+    { field: 'forces', label: 'Démontre de bonnes habiletés en résolution de problèmes' },
+    { field: 'forces', label: 'A une excellente mémoire pour les faits et les détails' },
+    { field: 'forces', label: 'Fait preuve de créativité dans ses réalisations' },
+    { field: 'forces', label: "Accepte volontiers l'aide d'un adulte" },
+    { field: 'forces', label: 'A un bon sens de l\'humour qui facilite les relations sociales' },
+    { field: 'forces', label: 'Démontre de l\'empathie envers ses camarades' },
+    { field: 'forces', label: 'Aime les arts et s\'exprime bien par ce médium' },
+    { field: 'forces', label: 'Fait preuve d\'autonomie dans les routines connues' },
+    { field: 'besoins', label: 'Décodage des mots nouveaux en lecture' },
+    { field: 'besoins', label: 'Régulation émotionnelle lors des transitions non annoncées' },
+    { field: 'besoins', label: "Ponctuation et structure de phrase à l'écrit" },
+    { field: 'besoins', label: 'Maintien de l\'attention lors des tâches prolongées' },
+    { field: 'besoins', label: "Gestion de l'impulsivité en groupe" },
+    { field: 'besoins', label: 'Compréhension des consignes à plusieurs étapes' },
+    { field: 'besoins', label: "Motricité fine pour l'écriture manuscrite" },
+    { field: 'besoins', label: 'Interactions sociales avec les pairs' },
+    { field: 'besoins', label: 'Organisation du matériel scolaire' },
+    { field: 'besoins', label: 'Généralisation des apprentissages à de nouveaux contextes' },
+    { field: 'besoins', label: 'Gestion de l\'anxiété face à la nouveauté' },
+    { field: 'besoins', label: 'Autorégulation sensorielle dans les environnements bruyants' },
+  ]
+  const run = db.transaction(() => {
+    for (const e of entries) insertEntry.run(randomUUID(), e.label, e.field)
+  })
+  run()
 }
 
 function seedStrategyLibrary() {

@@ -25,6 +25,8 @@ export default function App() {
   const [error, setError] = useState(null)
   const { path, navigate } = useRoute()
   const [strategiesLibrary, setStrategiesLibrary] = useState([])
+  const [adaptationsLibrary, setAdaptationsLibrary] = useState([])
+  const [forcesBesoinsLibrary, setForcesBesoinsLibrary] = useState([])
 
   useEffect(() => {
     auth
@@ -55,6 +57,8 @@ export default function App() {
     if (authStatus !== 'authenticated') return
     loadStudents()
     api.getStrategiesLibrary().then(setStrategiesLibrary).catch((e) => setError(e.message))
+    api.getAdaptationsLibrary().then(setAdaptationsLibrary).catch((e) => setError(e.message))
+    api.getForcesBesoinsLibrary().then(setForcesBesoinsLibrary).catch((e) => setError(e.message))
   }, [authStatus])
 
   // Un lien vers un élève supprimé ou inexistant retombe sur le tableau de bord
@@ -419,6 +423,8 @@ export default function App() {
             onAddStrategy={addStrategy}
             onRemoveStrategy={removeStrategy}
             strategiesLibrary={strategiesLibrary}
+            adaptationsLibrary={adaptationsLibrary}
+            forcesBesoinsLibrary={forcesBesoinsLibrary}
             onAddNote={addNote}
             onEditStudent={editStudent}
             onRemoveStudent={removeStudent}

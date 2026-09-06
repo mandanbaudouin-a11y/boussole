@@ -89,6 +89,46 @@ describe('adaptations', () => {
   })
 })
 
+describe('bibliotheques de suggestions (adaptations, forces/besoins)', () => {
+  it('la bibliotheque d adaptations contient des entrees pour les 3 sous-types', async () => {
+    const res = await fetch(`${baseUrl}/api/adaptations-library`, authed(teacherCookie))
+    const body = await res.json()
+    expect(res.status).toBe(200)
+    expect(body.length).toBeGreaterThanOrEqual(10)
+    const subtypes = new Set(body.map((a) => a.subtype))
+    expect(subtypes).toEqual(new Set(['pedagogique', 'environnementale', 'evaluation']))
+  })
+
+  it('la bibliotheque forces/besoins contient les deux champs', async () => {
+    const res = await fetch(`${baseUrl}/api/forces-besoins-library`, authed(teacherCookie))
+    const body = await res.json()
+    expect(res.status).toBe(200)
+    expect(body.length).toBeGreaterThanOrEqual(10)
+    const fields = new Set(body.map((e) => e.field))
+    expect(fields).toEqual(new Set(['forces', 'besoins']))
+  })
+
+  it('les deux bibliotheques restent accessibles a l EA (lecture seule)', async () => {
+    const adaptRes = await fetch(`${baseUrl}/api/adaptations-library`, authed(eaCookie))
+    const fbRes = await fetch(`${baseUrl}/api/forces-besoins-library`, authed(eaCookie))
+    expect(adaptRes.status).toBe(200)
+    expect(fbRes.status).toBe(200)
+  })
+
+  it('une adaptation ajoutee via une suggestion de la bibliotheque garde le bon sous-type', async () => {
+    const library = await (await fetch(`${baseUrl}/api/adaptations-library`, authed(teacherCookie))).json()
+    const suggestion = library.find((a) => a.subtype === 'evaluation')
+    const res = await fetch(
+      `${baseUrl}/api/students/${studentId}/adaptations`,
+      authed(teacherCookie, { method: 'POST', body: JSON.stringify({ subtype: 'evaluation', description: suggestion.label }) })
+    )
+    const body = await res.json()
+    expect(res.status).toBe(201)
+    expect(body.description).toBe(suggestion.label)
+    expect(body.subtype).toBe('evaluation')
+  })
+})
+
 describe('modifications', () => {
   it("l'enseignant peut ajouter une modification", async () => {
     const res = await fetch(

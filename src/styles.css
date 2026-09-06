@@ -441,6 +441,19 @@ body {
 
 .strategy-chip-remove:hover { color: var(--urgent); }
 
+.suggestion-chip {
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  color: var(--chalk);
+  background: var(--chalk-soft);
+  border: 1px solid var(--chalk-soft-border);
+  border-radius: 999px;
+  padding: 5px 11px;
+  cursor: pointer;
+}
+
+.suggestion-chip:hover { color: #fff; background: var(--chalk); border-color: var(--chalk); }
+
 .strategy-suggestions {
   position: absolute;
   top: calc(100% + 4px);

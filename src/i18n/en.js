@@ -165,6 +165,8 @@ export const en = {
   'Aucune modification enregistrée.': 'No modification recorded.',
   "Générale (non liée à un objectif)": 'General (not tied to a goal)',
   "Description de l'adaptation": 'Description of the accommodation',
+  'Description (suggestion ou texte libre)': 'Description (suggestion or free text)',
+  'Suggestions — cliquer pour ajouter': 'Suggestions — click to add',
   'Matière concernée': 'Subject',
   "Description du changement d'attente": 'Description of the expectation change',
   'Liée à : {label}': 'Linked to: {label}',

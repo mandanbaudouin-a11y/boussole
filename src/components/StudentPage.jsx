@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { GoalRow, AddGoalRow } from './GoalList'
 import { GOAL_STATUS_LABELS, GOAL_STATUS_ICONS } from '../goalStatus'
 import { STRATEGY_CATEGORY_LABELS } from '../strategyCategories'
@@ -144,7 +144,7 @@ function AddNoteForm({ studentId, onAddNote }) {
   )
 }
 
-function EditableTextSection({ title, value, canEdit, studentId, field, onSave }) {
+function EditableTextSection({ title, value, canEdit, studentId, field, suggestions = [], onSave }) {
   const { t, lang } = useLanguage()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
@@ -156,6 +156,18 @@ function EditableTextSection({ title, value, canEdit, studentId, field, onSave }
     setError(null)
     setDraft(value || '')
     setEditing(true)
+  }
+
+  // Ajoute une formulation suggerée à la suite du texte existant plutôt que
+  // de le remplacer : forces/besoins se composent typiquement de plusieurs
+  // phrases, contrairement aux stratégies/adaptations qui sont des éléments
+  // distincts d'une liste.
+  const appendSuggestion = (label) => {
+    setDraft((prev) => {
+      const trimmed = prev.trim()
+      if (!trimmed) return label
+      return `${trimmed}${/[.!?]$/.test(trimmed) ? '' : '.'} ${label}`
+    })
   }
 
   const suggest = async () => {
@@ -206,6 +218,23 @@ function EditableTextSection({ title, value, canEdit, studentId, field, onSave }
             onChange={(e) => setDraft(e.target.value)}
             autoFocus
           />
+          {suggestions.length > 0 && (
+            <div style={{ marginTop: 10 }}>
+              <p className="page-date" style={{ margin: '0 0 6px' }}>{t('Suggestions — cliquer pour ajouter')}</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {suggestions.map((s) => (
+                  <button
+                    type="button"
+                    key={s.id}
+                    className="suggestion-chip"
+                    onClick={() => appendSuggestion(s.label)}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="form-row" style={{ marginTop: 10 }}>
             <button className="btn btn-primary" onClick={save} disabled={saving}>
               {saving ? t('Enregistrement...') : t('Enregistrer')}
@@ -230,7 +259,7 @@ function EditableTextSection({ title, value, canEdit, studentId, field, onSave }
   )
 }
 
-function ProfilTab({ student, canEdit, onEditStudent }) {
+function ProfilTab({ student, canEdit, onEditStudent, forcesBesoinsLibrary }) {
   const { t } = useLanguage()
   return (
     <div>
@@ -273,6 +302,7 @@ function ProfilTab({ student, canEdit, onEditStudent }) {
         canEdit={canEdit}
         studentId={student.id}
         field="forces"
+        suggestions={forcesBesoinsLibrary.filter((e) => e.field === 'forces')}
         onSave={(text) => onEditStudent(student.id, { forces: text })}
       />
       <EditableTextSection
@@ -281,6 +311,7 @@ function ProfilTab({ student, canEdit, onEditStudent }) {
         canEdit={canEdit}
         studentId={student.id}
         field="besoins"
+        suggestions={forcesBesoinsLibrary.filter((e) => e.field === 'besoins')}
         onSave={(text) => onEditStudent(student.id, { besoins: text })}
       />
     </div>
@@ -394,22 +425,37 @@ function PlaceholderTab({ sections }) {
   )
 }
 
-function AddAdaptationForm({ studentId, goals, onAdd }) {
+function AddAdaptationForm({ studentId, goals, adaptationsLibrary, onAdd }) {
   const { t } = useLanguage()
   const [subtype, setSubtype] = useState('pedagogique')
   const [goalId, setGoalId] = useState('')
   const [description, setDescription] = useState('')
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const wrapperRef = useRef(null)
 
-  const submit = (e) => {
-    e.preventDefault()
-    if (!description.trim()) return
-    onAdd(studentId, { subtype, description: description.trim(), goalId: goalId || null })
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) setShowSuggestions(false)
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const submitDescription = (rawDescription) => {
+    const trimmed = rawDescription.trim()
+    if (!trimmed) return
+    onAdd(studentId, { subtype, description: trimmed, goalId: goalId || null })
     setDescription('')
     setGoalId('')
+    setShowSuggestions(false)
   }
 
+  const filtered = adaptationsLibrary.filter(
+    (a) => a.subtype === subtype && a.label.toLowerCase().includes(description.trim().toLowerCase())
+  )
+
   return (
-    <form className="form-row" style={{ marginTop: 10, flexWrap: 'wrap' }} onSubmit={submit}>
+    <form className="form-row strategy-autocomplete" style={{ marginTop: 10, flexWrap: 'wrap' }} ref={wrapperRef} onSubmit={(e) => { e.preventDefault(); submitDescription(description) }}>
       <select className="text-input" style={{ maxWidth: 170 }} value={subtype} onChange={(e) => setSubtype(e.target.value)}>
         {ADAPTATION_SUBTYPES.map((s) => (
           <option key={s.value} value={s.value}>{t(s.label)}</option>
@@ -421,13 +467,25 @@ function AddAdaptationForm({ studentId, goals, onAdd }) {
           <option key={g.id} value={g.id}>{g.label}</option>
         ))}
       </select>
-      <input
-        className="text-input"
-        style={{ flex: 1, minWidth: 200 }}
-        placeholder={t("Description de l'adaptation")}
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-      />
+      <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
+        <input
+          className="text-input"
+          style={{ width: '100%' }}
+          placeholder={t("Description (suggestion ou texte libre)")}
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          onFocus={() => setShowSuggestions(true)}
+        />
+        {showSuggestions && filtered.length > 0 && (
+          <div className="strategy-suggestions">
+            {filtered.map((a) => (
+              <button type="button" key={a.id} className="strategy-suggestion-item" onClick={() => submitDescription(a.label)}>
+                {a.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
       <button type="submit" className="btn">{t('Ajouter')}</button>
     </form>
   )
@@ -532,6 +590,7 @@ function ModificationRow({ modification, canEdit, onRemove }) {
 function AdaptationsModificationsTab({
   student,
   canEdit,
+  adaptationsLibrary,
   onAddAdaptation,
   onRemoveAdaptation,
   onAddModification,
@@ -556,7 +615,12 @@ function AdaptationsModificationsTab({
           />
         ))}
         {canEdit && (
-          <AddAdaptationForm studentId={student.id} goals={student.goals} onAdd={onAddAdaptation} />
+          <AddAdaptationForm
+            studentId={student.id}
+            goals={student.goals}
+            adaptationsLibrary={adaptationsLibrary}
+            onAdd={onAddAdaptation}
+          />
         )}
       </div>
 
@@ -1186,6 +1250,8 @@ export default function StudentPage({
   onAddStrategy,
   onRemoveStrategy,
   strategiesLibrary,
+  adaptationsLibrary,
+  forcesBesoinsLibrary,
   onAddNote,
   onEditStudent,
   onRemoveStudent,
@@ -1241,7 +1307,7 @@ export default function StudentPage({
       </div>
 
       {activeTab === 'profil' && (
-        <ProfilTab student={student} canEdit={canEdit} onEditStudent={onEditStudent} />
+        <ProfilTab student={student} canEdit={canEdit} onEditStudent={onEditStudent} forcesBesoinsLibrary={forcesBesoinsLibrary} />
       )}
 
       {activeTab === 'objectifs' && (
@@ -1263,6 +1329,7 @@ export default function StudentPage({
         <AdaptationsModificationsTab
           student={student}
           canEdit={canEdit}
+          adaptationsLibrary={adaptationsLibrary}
           onAddAdaptation={onAddAdaptation}
           onRemoveAdaptation={onRemoveAdaptation}
           onAddModification={onAddModification}

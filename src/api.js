@@ -46,6 +46,9 @@ export const api = {
     request(`/goals/${goalId}/strategies`, { method: 'POST', body: JSON.stringify({ label, category }) }),
   deleteStrategy: (strategyId) => request(`/strategies/${strategyId}`, { method: 'DELETE' }),
 
+  getAdaptationsLibrary: () => request('/adaptations-library'),
+  getForcesBesoinsLibrary: () => request('/forces-besoins-library'),
+
   addAdaptation: (studentId, data) =>
     request(`/students/${studentId}/adaptations`, { method: 'POST', body: JSON.stringify(data) }),
   deleteAdaptation: (adaptationId) => request(`/adaptations/${adaptationId}`, { method: 'DELETE' }),

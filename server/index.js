@@ -546,6 +546,14 @@ app.get('/api/strategies-library', (req, res) => {
   res.json(db.prepare('SELECT id, label, category FROM strategies_library ORDER BY category ASC, label ASC').all())
 })
 
+app.get('/api/adaptations-library', (req, res) => {
+  res.json(db.prepare('SELECT id, label, subtype FROM adaptations_library ORDER BY subtype ASC, label ASC').all())
+})
+
+app.get('/api/forces-besoins-library', (req, res) => {
+  res.json(db.prepare('SELECT id, label, field FROM forces_besoins_library ORDER BY field ASC, label ASC').all())
+})
+
 app.post('/api/goals/:goalId/strategies', requireRole('enseignant'), (req, res) => {
   const goal = db.prepare('SELECT * FROM goals WHERE id = ?').get(req.params.goalId)
   if (!goal) return notFound(res, 'Objectif')
