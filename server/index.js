@@ -573,6 +573,51 @@ app.get('/api/students', (req, res) => {
   res.json(rows.map(toStudentDTO))
 })
 
+// ---------- Tableau de complétion ("tour de contrôle") ----------
+// Vue d'ensemble de tous les PEI accessibles (mêmes élèves que GET
+// /api/students, aucun nouveau calcul de portée) avec un résumé par section
+// dérivé à la volée — rien de stocké, pour ne jamais désynchroniser ce
+// tableau du contenu réel. Utile en premier lieu à un enseignant-ressource
+// qui suit plusieurs classes, mais reste accessible à tout compte (comme
+// GET /api/students).
+app.get('/api/students/completion', (req, res) => {
+  const { placeholders, ids } = accessFilter(req)
+  const rows = db.prepare(`SELECT * FROM students WHERE teacher_id IN (${placeholders}) ORDER BY rowid ASC`).all(...ids)
+
+  const completion = rows.map((row) => {
+    const goals = getGoalsForStudent.all(row.id)
+    const adaptations = getAdaptationsForStudent.all(row.id)
+    const modifications = getModificationsForStudent.all(row.id)
+    const age = ageFromBirthdate(row.birthdate)
+    // Même critère que l'affichage conditionnel de l'onglet côté client
+    // (voir StudentPage.jsx) : 14 ans et plus, ou marqué applicable manuellement.
+    const transitionApplicable = (age !== null && age >= 14) || !!row.applicable_transition
+    const transitionGoals = transitionApplicable ? getTransitionGoalsForStudent.all(row.id) : []
+
+    const lastModifiedAt = [row.modified_at, ...goals.map((g) => g.modified_at), ...adaptations.map((a) => a.modified_at), ...modifications.map((m) => m.modified_at)]
+      .filter(Boolean)
+      .sort()
+      .at(-1) || null
+
+    return {
+      id: row.id,
+      name: row.name,
+      grade: row.grade,
+      sections: {
+        profil: !!(row.forces && row.forces.trim()) && !!(row.besoins && row.besoins.trim()),
+        objectifs: goals.length > 0,
+        adaptationsModifications: adaptations.length > 0 || modifications.length > 0,
+        // null = plan de transition non applicable pour cet élève.
+        transition: transitionApplicable ? transitionGoals.length > 0 : null,
+        consultation: !!row.copy_delivery_date,
+      },
+      lastModifiedAt,
+    }
+  })
+
+  res.json(completion)
+})
+
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 // N'utilise pas toISOString() : ça convertit en UTC et peut décaler la date
 // d'un jour en soirée pour un fuseau horaire à l'ouest de l'UTC (ex. Manitoba).

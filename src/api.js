@@ -15,6 +15,7 @@ async function request(path, options) {
 
 export const api = {
   getStudents: () => request('/students'),
+  getCompletion: () => request('/students/completion'),
 
   createStudent: (data) => request('/students', { method: 'POST', body: JSON.stringify(data) }),
   updateStudent: (id, data) => request(`/students/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),

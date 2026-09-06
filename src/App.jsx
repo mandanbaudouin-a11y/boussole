@@ -9,6 +9,7 @@ import Dashboard from './components/Dashboard'
 import StudentPage from './components/StudentPage'
 import AccountsAdmin from './components/AccountsAdmin'
 import UpcomingReviews from './components/UpcomingReviews'
+import CompletionDashboard from './components/CompletionDashboard'
 import LanguageToggle from './components/LanguageToggle'
 
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000
@@ -27,6 +28,14 @@ export default function App() {
   const [strategiesLibrary, setStrategiesLibrary] = useState([])
   const [adaptationsLibrary, setAdaptationsLibrary] = useState([])
   const [forcesBesoinsLibrary, setForcesBesoinsLibrary] = useState([])
+
+  // Détermine l'écran d'accueil par défaut : un collaborateur non-propriétaire
+  // avec au moins une assignation active (typiquement un enseignant-ressource
+  // suivant plusieurs classes) atterrit sur le Tour de contrôle plutôt que le
+  // tableau de bord standard. landedOnDefault évite de refaire cette
+  // redirection si l'utilisateur navigue ensuite lui-même vers "/".
+  const [defaultView, setDefaultView] = useState(null)
+  const [landedOnDefault, setLandedOnDefault] = useState(false)
 
   useEffect(() => {
     auth
@@ -60,6 +69,35 @@ export default function App() {
     api.getAdaptationsLibrary().then(setAdaptationsLibrary).catch((e) => setError(e.message))
     api.getForcesBesoinsLibrary().then(setForcesBesoinsLibrary).catch((e) => setError(e.message))
   }, [authStatus])
+
+  useEffect(() => {
+    // Ne calcule (et ne fige) rien tant qu'on n'est pas réellement connecté —
+    // sinon la valeur provisoire "/" posée ici pendant l'écran de connexion
+    // ferait croire à l'effet de redirection ci-dessous que la décision est
+    // déjà prise, avant même que le vrai calcul (profil + assignations) ait
+    // eu lieu.
+    if (authStatus !== 'authenticated') return
+    if (role !== 'enseignant') {
+      setDefaultView('/')
+      return
+    }
+    auth
+      .getProfile()
+      .then(async (profile) => {
+        if (profile.isOwner) return setDefaultView('/')
+        const assignments = await auth.getAssignments()
+        const hasResourceAssignment = assignments.some((a) => a.resourceUsername === username)
+        setDefaultView(hasResourceAssignment ? '/tour-de-controle' : '/')
+      })
+      .catch(() => setDefaultView('/'))
+  }, [authStatus, role, username])
+
+  // Redirection unique à la connexion (pas à chaque retour manuel sur "/").
+  useEffect(() => {
+    if (landedOnDefault || !defaultView || path !== '/') return
+    setLandedOnDefault(true)
+    if (defaultView !== '/') navigate(defaultView)
+  }, [defaultView, landedOnDefault, path])
 
   // Un lien vers un élève supprimé ou inexistant retombe sur le tableau de bord
   // plutôt que d'afficher une page cassée.
@@ -115,6 +153,8 @@ export default function App() {
     navigate('/')
     setUsername(null)
     setRole(null)
+    setDefaultView(null)
+    setLandedOnDefault(false)
     setAuthMessage(message || null)
     setAuthStatus('login')
   }
@@ -315,6 +355,7 @@ export default function App() {
 
   const navItems = [
     { key: '/', label: t('Tableau de bord') },
+    { key: '/tour-de-controle', label: t('Tour de contrôle') },
     { key: '/revisions', label: t('Révisions'), badge: (() => {
       const n = students.filter((s) => s.reviewInDays <= 30).length
       return n > 0 ? n : null
@@ -443,6 +484,8 @@ export default function App() {
         {!loading && path === '/revisions' && (
           <UpcomingReviews students={students} onOpenStudent={openStudent} />
         )}
+
+        {path === '/tour-de-controle' && <CompletionDashboard onOpenStudent={openStudent} />}
 
         {path === '/comptes' && role === 'enseignant' && <AccountsAdmin />}
       </main>

@@ -316,6 +316,19 @@ export const en = {
   élèves: 'students',
   'Révision prévue le {date}': 'Review scheduled for {date}',
 
+  // ---------- Tour de contrôle (tableau de complétion) ----------
+  'Tour de contrôle': 'Control tower',
+  "Vue d'ensemble des PEI accessibles": 'Overview of accessible IEPs',
+  'Aucun élève accessible pour le moment.': 'No accessible student yet.',
+  'Élèves': 'Students',
+  '{n} section sur 5 à compléter': '{n} of 5 sections to complete',
+  'PEI complet': 'Complete IEP',
+  'modifié le {date}': 'modified on {date}',
+  'jamais modifié': 'never modified',
+  'Adapt. / Modif.': 'Accom. / Mod.',
+  'Transition': 'Transition',
+  'Consultation': 'Consultation',
+
   // ---------- Comptes / IA ----------
   'Création...': 'Creating...',
   'Retirer la clé API {label} ? La génération par ce fournisseur sera désactivée.':
