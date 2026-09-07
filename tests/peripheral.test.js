@@ -214,6 +214,43 @@ describe('notes de suivi', () => {
     const res = await fetch(`${baseUrl}/api/students/${studentId}/notes`, authed(teacherCookie, { method: 'POST', body: JSON.stringify({ text: '  ' }) }))
     expect(res.status).toBe(400)
   })
+
+  it("l'enseignant peut modifier une note existante", async () => {
+    const note = await (
+      await fetch(`${baseUrl}/api/students/${studentId}/notes`, authed(teacherCookie, { method: 'POST', body: JSON.stringify({ text: 'brouillon' }) }))
+    ).json()
+    const res = await fetch(`${baseUrl}/api/notes/${note.id}`, authed(teacherCookie, { method: 'PATCH', body: JSON.stringify({ text: 'texte corrigé' }) }))
+    expect(res.status).toBe(200)
+    expect((await res.json()).text).toBe('texte corrigé')
+  })
+
+  it("l'enseignant peut supprimer une note", async () => {
+    const note = await (
+      await fetch(`${baseUrl}/api/students/${studentId}/notes`, authed(teacherCookie, { method: 'POST', body: JSON.stringify({ text: 'à retirer' }) }))
+    ).json()
+    const res = await fetch(`${baseUrl}/api/notes/${note.id}`, authed(teacherCookie, { method: 'DELETE' }))
+    expect(res.status).toBe(204)
+  })
+
+  it("l'EA peut ajouter une note mais pas la modifier ni la supprimer", async () => {
+    const note = await (
+      await fetch(`${baseUrl}/api/students/${studentId}/notes`, authed(eaCookie, { method: 'POST', body: JSON.stringify({ text: 'note EA' }) }))
+    ).json()
+    const patchRes = await fetch(`${baseUrl}/api/notes/${note.id}`, authed(eaCookie, { method: 'PATCH', body: JSON.stringify({ text: 'modifiée' }) }))
+    expect(patchRes.status).toBe(403)
+    const deleteRes = await fetch(`${baseUrl}/api/notes/${note.id}`, authed(eaCookie, { method: 'DELETE' }))
+    expect(deleteRes.status).toBe(403)
+  })
+
+  it('rejette une modification vide et une note inexistante', async () => {
+    const note = await (
+      await fetch(`${baseUrl}/api/students/${studentId}/notes`, authed(teacherCookie, { method: 'POST', body: JSON.stringify({ text: 'x' }) }))
+    ).json()
+    const emptyRes = await fetch(`${baseUrl}/api/notes/${note.id}`, authed(teacherCookie, { method: 'PATCH', body: JSON.stringify({ text: '  ' }) }))
+    expect(emptyRes.status).toBe(400)
+    const missingRes = await fetch(`${baseUrl}/api/notes/999999`, authed(teacherCookie, { method: 'PATCH', body: JSON.stringify({ text: 'x' }) }))
+    expect(missingRes.status).toBe(404)
+  })
 })
 
 describe('sauvegarde et restauration', () => {

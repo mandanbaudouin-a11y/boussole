@@ -121,6 +121,61 @@ function StudentHeader({ student, canEdit, onEditStudent, onRemoveStudent }) {
   )
 }
 
+function NoteRow({ studentId, note, canEdit, onEditNote, onRemoveNote }) {
+  const { t } = useLanguage()
+  const confirm = useConfirm()
+  const [editing, setEditing] = useState(false)
+  const [text, setText] = useState(note.text)
+
+  const save = () => {
+    const trimmed = text.trim()
+    if (trimmed && trimmed !== note.text) onEditNote(studentId, note.id, trimmed)
+    else setText(note.text)
+    setEditing(false)
+  }
+
+  if (editing) {
+    return (
+      <div className="goal-row" style={{ alignItems: 'flex-start' }}>
+        <span className="week-label" style={{ width: 60 }}>{note.date}</span>
+        <input
+          className="text-input"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') save()
+            if (e.key === 'Escape') { setText(note.text); setEditing(false) }
+          }}
+          autoFocus
+        />
+        <button className="icon-btn" onClick={save} title={t('Enregistrer')}>&#10003;</button>
+        <button className="icon-btn" onClick={() => { setText(note.text); setEditing(false) }} title={t('Annuler')}>&times;</button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="goal-row" style={{ alignItems: 'flex-start' }}>
+      <span className="week-label" style={{ width: 60 }}>{note.date}</span>
+      <span className="goal-label" style={{ flex: 1 }}>{note.text}</span>
+      {canEdit && (
+        <>
+          <button className="icon-btn" onClick={() => setEditing(true)} title={t('Modifier')}>&#9998;</button>
+          <button
+            className="icon-btn icon-btn-danger"
+            onClick={async () => {
+              if (await confirm(t('Supprimer cette note ?'))) onRemoveNote(studentId, note.id)
+            }}
+            title={t('Supprimer')}
+          >
+            &times;
+          </button>
+        </>
+      )}
+    </div>
+  )
+}
+
 function AddNoteForm({ studentId, onAddNote }) {
   const { t } = useLanguage()
   const [text, setText] = useState('')
@@ -339,6 +394,8 @@ function ObjectifsTab({
   onRemoveStrategy,
   strategiesLibrary,
   onAddNote,
+  onEditNote,
+  onRemoveNote,
 }) {
   const { t } = useLanguage()
   const achievedCount = student.goals.filter((g) => g.status === 'atteint' || g.status === 'depasse').length
@@ -407,10 +464,14 @@ function ObjectifsTab({
         </div>
         {student.notes.length === 0 && <p className="page-date" style={{ margin: 0 }}>{t('Aucune note pour le moment.')}</p>}
         {student.notes.map((note, i) => (
-          <div className="goal-row" key={note.id ?? i} style={{ alignItems: 'flex-start' }}>
-            <span className="week-label" style={{ width: 60 }}>{note.date}</span>
-            <span className="goal-label">{note.text}</span>
-          </div>
+          <NoteRow
+            key={note.id ?? i}
+            studentId={student.id}
+            note={note}
+            canEdit={canEdit}
+            onEditNote={onEditNote}
+            onRemoveNote={onRemoveNote}
+          />
         ))}
         <AddNoteForm studentId={student.id} onAddNote={onAddNote} />
       </div>
@@ -1356,7 +1417,56 @@ function ReportVersionsHistory({ student, refreshSignal, deliveredVersionId, cop
   )
 }
 
-function RapportTab({ student, canEdit, onSaveNarrativeReport }) {
+// Édition du libellé directement dans l'aperçu du rapport — pratique pour
+// corriger une faute juste avant l'export, sans retourner dans l'onglet
+// Objectifs. Le statut, lui, ne se modifie que depuis cet onglet.
+function ReportGoalLine({ studentId, goal, canEdit, onEditGoal }) {
+  const { t } = useLanguage()
+  const [editing, setEditing] = useState(false)
+  const [label, setLabel] = useState(goal.label)
+
+  const save = () => {
+    const trimmed = label.trim()
+    if (trimmed && trimmed !== goal.label) onEditGoal(studentId, goal.id, trimmed)
+    else setLabel(goal.label)
+    setEditing(false)
+  }
+
+  if (editing) {
+    return (
+      <div className="report-goal-line" style={{ alignItems: 'center', gap: 8 }}>
+        <input
+          className="text-input"
+          style={{ flex: 1 }}
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') save()
+            if (e.key === 'Escape') { setLabel(goal.label); setEditing(false) }
+          }}
+          autoFocus
+        />
+        <button className="icon-btn" onClick={save} title={t('Enregistrer')}>&#10003;</button>
+        <button className="icon-btn" onClick={() => { setLabel(goal.label); setEditing(false) }} title={t('Annuler')}>&times;</button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="report-goal-line" style={{ alignItems: 'center', gap: 8 }}>
+      <span style={{ flex: 1 }}>{goal.label}</span>
+      <span className={`status-badge status-${goal.status}`}>
+        <span className="status-icon">{GOAL_STATUS_ICONS[goal.status]}</span>
+        {t(GOAL_STATUS_LABELS[goal.status])}
+      </span>
+      {canEdit && (
+        <button className="icon-btn" onClick={() => setEditing(true)} title={t('Modifier le libellé')}>&#9998;</button>
+      )}
+    </div>
+  )
+}
+
+function RapportTab({ student, canEdit, onSaveNarrativeReport, onEditGoal, onEditNote, onRemoveNote }) {
   const { t, lang } = useLanguage()
   const [exportingPdf, setExportingPdf] = useState(false)
   const [pdfError, setPdfError] = useState(null)
@@ -1428,13 +1538,7 @@ function RapportTab({ student, canEdit, onSaveNarrativeReport }) {
         <p className="report-section-title">{t('Objectifs suivis')}</p>
         {student.goals.map((goal) => (
           <div className="report-goal-block" key={goal.id}>
-            <div className="report-goal-line">
-              <span>{goal.label}</span>
-              <span className={`status-badge status-${goal.status}`}>
-                <span className="status-icon">{GOAL_STATUS_ICONS[goal.status]}</span>
-                {t(GOAL_STATUS_LABELS[goal.status])}
-              </span>
-            </div>
+            <ReportGoalLine studentId={student.id} goal={goal} canEdit={canEdit} onEditGoal={onEditGoal} />
             {goal.strategies && goal.strategies.length > 0 && (
               <div className="report-goal-strategies">
                 {goal.strategies.map((s) => (
@@ -1452,10 +1556,14 @@ function RapportTab({ student, canEdit, onSaveNarrativeReport }) {
 
         <p className="report-section-title">{t("Notes de l'enseignant")}</p>
         {student.notes.map((note, i) => (
-          <div className="report-goal-line" key={i}>
-            <span className="week-label" style={{ width: 60 }}>{note.date}</span>
-            <span style={{ flex: 1, marginLeft: 12 }}>{note.text}</span>
-          </div>
+          <NoteRow
+            key={note.id ?? i}
+            studentId={student.id}
+            note={note}
+            canEdit={canEdit}
+            onEditNote={onEditNote}
+            onRemoveNote={onRemoveNote}
+          />
         ))}
 
         <div className={`alert ${student.reviewInDays <= 7 ? 'alert-urgent' : 'alert-warning'}`} style={{ marginTop: 24 }}>
@@ -1500,6 +1608,8 @@ export default function StudentPage({
   adaptationsLibrary,
   forcesBesoinsLibrary,
   onAddNote,
+  onEditNote,
+  onRemoveNote,
   onEditStudent,
   onRemoveStudent,
   onSaveNarrativeReport,
@@ -1569,6 +1679,8 @@ export default function StudentPage({
           onRemoveStrategy={onRemoveStrategy}
           strategiesLibrary={strategiesLibrary}
           onAddNote={onAddNote}
+          onEditNote={onEditNote}
+          onRemoveNote={onRemoveNote}
         />
       )}
 
@@ -1600,7 +1712,14 @@ export default function StudentPage({
       )}
 
       {activeTab === 'rapport' && (
-        <RapportTab student={student} canEdit={canEdit} onSaveNarrativeReport={onSaveNarrativeReport} />
+        <RapportTab
+          student={student}
+          canEdit={canEdit}
+          onSaveNarrativeReport={onSaveNarrativeReport}
+          onEditGoal={onEditGoal}
+          onEditNote={onEditNote}
+          onRemoveNote={onRemoveNote}
+        />
       )}
     </div>
   )

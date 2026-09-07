@@ -95,6 +95,8 @@ export const en = {
     'Delete {name} and all their goals? This action is irreversible.',
   'Supprimer cet objectif ? Cette action est irréversible.': 'Delete this goal? This action is irreversible.',
   'Retirer cette adaptation ?': 'Remove this adaptation?',
+  'Supprimer cette note ?': 'Delete this note?',
+  'Modifier le libellé': 'Edit label',
   'Retirer cette modification ?': 'Remove this modification?',
   'Supprimer cet objectif de transition ? Cette action est irréversible.':
     'Delete this transition goal? This action is irreversible.',

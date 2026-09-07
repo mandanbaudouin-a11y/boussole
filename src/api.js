@@ -28,6 +28,8 @@ export const api = {
 
   createNote: (studentId, text) =>
     request(`/students/${studentId}/notes`, { method: 'POST', body: JSON.stringify({ text }) }),
+  updateNote: (noteId, text) => request(`/notes/${noteId}`, { method: 'PATCH', body: JSON.stringify({ text }) }),
+  deleteNote: (noteId) => request(`/notes/${noteId}`, { method: 'DELETE' }),
 
   getAiStatus: () => request('/ai/status'),
   setActiveAiProvider: (provider) =>

@@ -198,6 +198,13 @@ function getAccessibleModification(req, modificationId) {
     .get(modificationId, ...ids)
 }
 
+function getAccessibleNote(req, noteId) {
+  const { placeholders, ids } = accessFilter(req)
+  return db
+    .prepare(`SELECT n.* FROM notes n JOIN students s ON s.id = n.student_id WHERE n.id = ? AND s.teacher_id IN (${placeholders})`)
+    .get(noteId, ...ids)
+}
+
 function getAccessibleTransitionGoal(req, goalId) {
   const { placeholders, ids } = accessFilter(req)
   return db
@@ -1084,6 +1091,28 @@ app.post('/api/students/:id/notes', requireRole('enseignant', 'ea'), (req, res) 
     .prepare('INSERT INTO notes (student_id, date, text) VALUES (?, ?, ?)')
     .run(req.params.id, date, text)
   res.status(201).json({ id: result.lastInsertRowid, date, text })
+})
+
+// Modifier/supprimer une note est réservé à l'enseignant, comme le reste du
+// contenu structuré du PEI — l'EA garde le droit d'en ajouter (ci-dessus)
+// mais pas de revenir sur une note déjà écrite, faute d'un moyen de savoir
+// qui a écrit quoi (les notes n'ont pas d'auteur enregistré).
+app.patch('/api/notes/:noteId', requireRole('enseignant'), (req, res) => {
+  const note = getAccessibleNote(req, req.params.noteId)
+  if (!note) return notFound(res, 'Note')
+
+  const text = (req.body.text || '').trim()
+  if (!text) return res.status(400).json({ error: 'La note ne peut pas être vide' })
+
+  db.prepare('UPDATE notes SET text = ? WHERE id = ?').run(text, req.params.noteId)
+  res.json({ id: note.id, date: note.date, text })
+})
+
+app.delete('/api/notes/:noteId', requireRole('enseignant'), (req, res) => {
+  const note = getAccessibleNote(req, req.params.noteId)
+  if (!note) return notFound(res, 'Note')
+  db.prepare('DELETE FROM notes WHERE id = ?').run(req.params.noteId)
+  res.status(204).end()
 })
 
 // ---------- Export PDF ----------

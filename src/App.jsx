@@ -319,6 +319,22 @@ export default function App() {
     )
   })
 
+  const editNote = withErrorHandling(async (studentId, noteId, text) => {
+    const updated = await api.updateNote(noteId, text)
+    setStudents((prev) =>
+      prev.map((s) =>
+        s.id !== studentId ? s : { ...s, notes: s.notes.map((n) => (n.id === noteId ? updated : n)) }
+      )
+    )
+  })
+
+  const removeNote = withErrorHandling(async (studentId, noteId) => {
+    await api.deleteNote(noteId)
+    setStudents((prev) =>
+      prev.map((s) => (s.id !== studentId ? s : { ...s, notes: s.notes.filter((n) => n.id !== noteId) }))
+    )
+  })
+
   const addStudent = withErrorHandling(async (data) => {
     const student = await api.createStudent(data)
     setStudents((prev) => [...prev, student])
@@ -467,6 +483,8 @@ export default function App() {
             adaptationsLibrary={adaptationsLibrary}
             forcesBesoinsLibrary={forcesBesoinsLibrary}
             onAddNote={addNote}
+            onEditNote={editNote}
+            onRemoveNote={removeNote}
             onEditStudent={editStudent}
             onRemoveStudent={removeStudent}
             onSaveNarrativeReport={saveNarrativeReport}
