@@ -538,9 +538,6 @@ function seed() {
   const insertGoalHistory = db.prepare(
     'INSERT INTO goal_status_history (goal_id, status, changed_by) VALUES (?, ?, ?)'
   )
-  const insertWeek = db.prepare(
-    'INSERT INTO weekly_rate (student_id, week, pct) VALUES (?, ?, ?)'
-  )
   const insertNote = db.prepare(
     'INSERT INTO notes (student_id, date, text) VALUES (?, ?, ?)'
   )
@@ -556,12 +553,6 @@ function seed() {
         { label: 'Lever la main avant de parler', status: 'en_progres' },
         { label: 'Faire une transition sans soutien verbal', status: 'depasse' },
       ],
-      weeklyRate: [
-        { week: 'Sem. 1', pct: 40 },
-        { week: 'Sem. 2', pct: 55 },
-        { week: 'Sem. 3', pct: 50 },
-        { week: 'Sem. 4', pct: 70 },
-      ],
       notes: [
         { date: '20 août', text: "Bonne journée, a demandé de l'aide avant de perdre patience." },
         { date: '19 août', text: 'Difficulté à la transition du dîner, retour au calme après 5 min.' },
@@ -576,12 +567,6 @@ function seed() {
         { label: "Utiliser un pictogramme pour demander de l'aide", status: 'non_atteint' },
         { label: 'Suivre la routine du matin sans accompagnement', status: 'atteint' },
       ],
-      weeklyRate: [
-        { week: 'Sem. 1', pct: 20 },
-        { week: 'Sem. 2', pct: 35 },
-        { week: 'Sem. 3', pct: 45 },
-        { week: 'Sem. 4', pct: 60 },
-      ],
       notes: [{ date: '20 août', text: 'A utilisé le pictogramme deux fois sans rappel.' }],
     },
     {
@@ -593,12 +578,6 @@ function seed() {
         { label: 'Écrire son prénom sans modèle', status: 'atteint' },
         { label: 'Rester dans le groupe lors des déplacements', status: 'en_progres' },
         { label: 'Utiliser des mots plutôt que des gestes', status: 'non_atteint' },
-      ],
-      weeklyRate: [
-        { week: 'Sem. 1', pct: 60 },
-        { week: 'Sem. 2', pct: 65 },
-        { week: 'Sem. 3', pct: 58 },
-        { week: 'Sem. 4', pct: 80 },
       ],
       notes: [
         { date: '20 août', text: 'Excellente journée, a écrit son prénom sans aide.' },
@@ -615,7 +594,6 @@ function seed() {
         insertGoal.run(goalId, s.id, g.label, g.status, i)
         insertGoalHistory.run(goalId, g.status, null)
       })
-      s.weeklyRate.forEach((w) => insertWeek.run(s.id, w.week, w.pct))
       s.notes.forEach((n) => insertNote.run(s.id, n.date, n.text))
     }
   })

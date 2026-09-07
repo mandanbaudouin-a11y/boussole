@@ -76,7 +76,13 @@ const upload = multer({
 
 const getStudentRow = db.prepare('SELECT * FROM students WHERE id = ?')
 const getGoalsForStudent = db.prepare('SELECT * FROM goals WHERE student_id = ? ORDER BY position ASC, rowid ASC')
-const getWeeklyRateForStudent = db.prepare('SELECT week, pct FROM weekly_rate WHERE student_id = ? ORDER BY id ASC')
+const getStatusHistoryForStudentGoals = db.prepare(`
+  SELECT h.goal_id, h.status, h.changed_at
+  FROM goal_status_history h
+  JOIN goals g ON g.id = h.goal_id
+  WHERE g.student_id = ?
+  ORDER BY h.changed_at ASC, h.id ASC
+`)
 const getNotesForStudent = db.prepare('SELECT id, date, text FROM notes WHERE student_id = ? ORDER BY id DESC')
 const getStatusHistoryForGoal = db.prepare(
   'SELECT status, changed_at, changed_by FROM goal_status_history WHERE goal_id = ? ORDER BY changed_at DESC, id DESC'
@@ -275,6 +281,49 @@ function isCopyDeliveryOverdue(consultationDate, copyDeliveryDate) {
   return daysSince > COPY_DELIVERY_DELAY_DAYS
 }
 
+// Taux de réussite hebdomadaire : pas stocké, calculé à partir du statut des
+// objectifs. Pour chaque semaine (les 4 dernières, lundi-dimanche), chaque
+// objectif déjà créé à ce moment-là compte pour son statut le plus récent à
+// la fin de cette semaine-là ; une semaine où l'élève n'a encore aucun
+// objectif est omise plutôt que comptée comme un taux de 0%.
+const GOAL_STATUS_SCORE = { non_atteint: 0, en_progres: 50, atteint: 100, depasse: 100 }
+
+function computeWeeklyRate(studentId) {
+  const rows = getStatusHistoryForStudentGoals.all(studentId)
+  if (rows.length === 0) return []
+
+  const byGoal = new Map()
+  for (const r of rows) {
+    if (!byGoal.has(r.goal_id)) byGoal.set(r.goal_id, [])
+    byGoal.get(r.goal_id).push(r)
+  }
+
+  // Les dates locales et l'UTC (utilisé par `changed_at`, voir plus haut)
+  // peuvent tomber sur des jours calendaires différents selon l'heure et le
+  // fuseau — toujours ancrer "aujourd'hui" en UTC ici, jamais en local, pour
+  // rester cohérent avec les timestamps stockés.
+  const now = new Date()
+  const todayUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+  const daysSinceMonday = (new Date(todayUTC).getUTCDay() + 6) % 7
+  const currentWeekSunday = todayUTC + (6 - daysSinceMonday) * 86400000
+
+  const percentages = []
+  for (let weeksAgo = 3; weeksAgo >= 0; weeksAgo -= 1) {
+    const weekEnd = currentWeekSunday - weeksAgo * 7 * 86400000 + 86400000 - 1
+    let total = 0
+    let count = 0
+    for (const history of byGoal.values()) {
+      const asOf = history.filter((h) => new Date(h.changed_at.replace(' ', 'T') + 'Z').getTime() <= weekEnd)
+      if (asOf.length === 0) continue
+      total += GOAL_STATUS_SCORE[asOf[asOf.length - 1].status] ?? 0
+      count += 1
+    }
+    if (count > 0) percentages.push(Math.round(total / count))
+  }
+
+  return percentages.map((pct, i) => ({ week: `Sem. ${i + 1}`, pct }))
+}
+
 function toStudentDTO(row) {
   return {
     id: row.id,
@@ -297,7 +346,7 @@ function toStudentDTO(row) {
     applicableTransition: !!row.applicable_transition,
     transitionGoals: getTransitionGoalsForStudent.all(row.id).map(toTransitionGoalDTO),
     goals: getGoalsForStudent.all(row.id).map(toGoalDTO),
-    weeklyRate: getWeeklyRateForStudent.all(row.id),
+    weeklyRate: computeWeeklyRate(row.id),
     notes: getNotesForStudent.all(row.id),
     narrativeReport: row.narrative_report,
     narrativeReportUpdatedAt: row.narrative_report_updated_at,
@@ -1282,7 +1331,6 @@ app.get('/api/backup/export', requireRole('enseignant'), (req, res) => {
         subject,
         description,
       })),
-      weeklyRate: getWeeklyRateForStudent.all(row.id),
       notes: getNotesForStudent.all(row.id).map(({ date, text }) => ({ date, text })),
     })),
   }
@@ -1333,7 +1381,6 @@ app.post('/api/backup/restore', requireRole('enseignant'), (req, res) => {
     const insertGoal = db.prepare(
       "INSERT INTO goals (id, student_id, label, status, position, modified_by, modified_at) VALUES (?, ?, ?, ?, ?, ?, datetime('now'))"
     )
-    const insertWeek = db.prepare('INSERT INTO weekly_rate (student_id, week, pct) VALUES (?, ?, ?)')
     const insertNote = db.prepare('INSERT INTO notes (student_id, date, text) VALUES (?, ?, ?)')
     const insertStrategy = db.prepare(
       'INSERT INTO goal_strategies (id, goal_id, label, category, position) VALUES (?, ?, ?, ?, ?)'
@@ -1441,10 +1488,6 @@ app.post('/api/backup/restore', requireRole('enseignant'), (req, res) => {
             if (!step || typeof step.description !== 'string' || !step.description.trim()) return
             insertTransitionStep.run(randomUUID(), transitionGoalId, step.description.trim(), j)
           })
-        })
-        ;(Array.isArray(s.weeklyRate) ? s.weeklyRate : []).forEach((w) => {
-          if (!w || typeof w.week !== 'string' || !Number.isFinite(w.pct)) return
-          insertWeek.run(studentId, w.week, w.pct)
         })
         ;(Array.isArray(s.notes) ? s.notes : []).forEach((n) => {
           if (!n || typeof n.date !== 'string' || typeof n.text !== 'string' || !n.text.trim()) return
