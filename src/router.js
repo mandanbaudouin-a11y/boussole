@@ -31,3 +31,22 @@ export function studentIdFromPath(path) {
 export function studentPath(id) {
   return `/eleve/${encodeURIComponent(id)}`
 }
+
+// Navigation Direction par enseignant-ressource, jusqu'à deux segments
+// optionnels : liste (aucun), classes d'un enseignant-ressource (resourceId),
+// élèves d'une classe (resourceId + ownerId). Retourne null si le chemin ne
+// correspond pas du tout à cette navigation.
+export function resourceDrilldownFromPath(path) {
+  const match = path.match(/^\/tour-de-controle-ressources(?:\/([^/]+)(?:\/([^/]+))?)?$/)
+  if (!match) return null
+  return {
+    resourceId: match[1] ? decodeURIComponent(match[1]) : null,
+    ownerId: match[2] ? decodeURIComponent(match[2]) : null,
+  }
+}
+
+export function resourceDrilldownPath(resourceId, ownerId) {
+  if (!resourceId) return '/tour-de-controle-ressources'
+  if (!ownerId) return `/tour-de-controle-ressources/${encodeURIComponent(resourceId)}`
+  return `/tour-de-controle-ressources/${encodeURIComponent(resourceId)}/${encodeURIComponent(ownerId)}`
+}

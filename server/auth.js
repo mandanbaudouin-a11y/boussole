@@ -130,8 +130,8 @@ export function listAssignments() {
   return db
     .prepare(
       `SELECT ta.id,
-              r.username AS resourceUsername, r.nom_complet AS resourceNomComplet,
-              o.username AS ownerUsername, o.nom_complet AS ownerNomComplet
+              r.id AS resourceUserId, r.username AS resourceUsername, r.nom_complet AS resourceNomComplet,
+              o.id AS ownerUserId, o.username AS ownerUsername, o.nom_complet AS ownerNomComplet
        FROM teacher_assignments ta
        JOIN users r ON r.id = ta.resource_user_id
        JOIN users o ON o.id = ta.owner_user_id

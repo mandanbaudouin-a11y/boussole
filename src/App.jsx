@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from './api'
 import { auth } from './auth'
 import { useIdleTimer } from './hooks/useIdleTimer'
-import { useRoute, studentIdFromPath, studentPath } from './router'
+import { useRoute, studentIdFromPath, studentPath, resourceDrilldownFromPath, resourceDrilldownPath } from './router'
 import { useLanguage } from './i18n/LanguageContext'
 import AuthScreen from './components/AuthScreen'
 import Dashboard from './components/Dashboard'
@@ -10,6 +10,7 @@ import StudentPage from './components/StudentPage'
 import AccountsAdmin from './components/AccountsAdmin'
 import UpcomingReviews from './components/UpcomingReviews'
 import CompletionDashboard from './components/CompletionDashboard'
+import ResourceTeacherDrilldown from './components/ResourceTeacherDrilldown'
 import LanguageToggle from './components/LanguageToggle'
 
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000
@@ -385,6 +386,7 @@ export default function App() {
       const n = students.filter((s) => s.reviewInDays <= 30).length
       return n > 0 ? n : null
     })() },
+    ...(role === 'direction' ? [{ key: '/tour-de-controle-ressources', label: t('Par enseignant-ressource') }] : []),
     ...(role === 'enseignant' ? [{ key: '/comptes', label: t('Comptes') }] : []),
   ]
 
@@ -426,7 +428,7 @@ export default function App() {
           {navItems.map((item) => (
             <button
               key={item.key}
-              className={`nav-item ${path === item.key ? 'active' : ''}`}
+              className={`nav-item ${(item.key === '/tour-de-controle-ressources' ? path.startsWith(item.key) : path === item.key) ? 'active' : ''}`}
               onClick={() => navigate(item.key)}
             >
               <span className="dot" />
@@ -513,6 +515,15 @@ export default function App() {
         )}
 
         {path === '/tour-de-controle' && <CompletionDashboard onOpenStudent={openStudent} />}
+
+        {role === 'direction' && resourceDrilldownFromPath(path) && (
+          <ResourceTeacherDrilldown
+            {...resourceDrilldownFromPath(path)}
+            students={students}
+            onOpenStudent={openStudent}
+            navigate={navigate}
+          />
+        )}
 
         {path === '/comptes' && role === 'enseignant' && <AccountsAdmin />}
       </main>

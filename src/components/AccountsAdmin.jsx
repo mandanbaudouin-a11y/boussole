@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { auth } from '../auth'
 import { api } from '../api'
 import { TEACHER_TITLES, TEACHER_TITLE_LABELS } from '../teacherTitles'
+import { getResourceTeacherColor } from '../resourceTeacherColor'
 import { useLanguage } from '../i18n/LanguageContext'
 
 const ROLE_LABELS = { enseignant: 'Enseignant', ea: 'EA', direction: 'Direction' }
@@ -377,11 +378,20 @@ function AssignmentsPanel({ accounts }) {
         <div style={{ marginBottom: 14 }}>
           {assignments.map((a) => (
             <div className="goal-row" key={a.id}>
-              <span className="goal-label">
-                {t('{resource} → élèves de {owner}', {
-                  resource: a.resourceNomComplet || a.resourceUsername,
-                  owner: a.ownerNomComplet || a.ownerUsername,
-                })}
+              <span className="goal-label" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    background: getResourceTeacherColor(a.resourceUserId),
+                    flexShrink: 0,
+                  }}
+                />
+                <span style={{ color: getResourceTeacherColor(a.resourceUserId), fontWeight: 600 }}>
+                  {a.resourceNomComplet || a.resourceUsername}
+                </span>
+                <span>{t('→ élèves de {owner}', { owner: a.ownerNomComplet || a.ownerUsername })}</span>
               </span>
               <button type="button" className="btn" onClick={() => remove(a.id)}>{t('Retirer')}</button>
             </div>

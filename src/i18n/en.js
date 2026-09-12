@@ -276,7 +276,7 @@ export const en = {
   "Donne à un compte enseignant collaborateur (ex. un enseignant-ressource) accès aux élèves d'un autre compte enseignant. Prend effet immédiatement, sans reconnexion.":
     "Gives a collaborating teacher account (e.g. a resource teacher) access to another teacher account's students. Takes effect immediately, no reconnection needed.",
   "Aucune assignation pour l'instant.": 'No assignments yet.',
-  '{resource} → élèves de {owner}': "{resource} → {owner}'s students",
+  '→ élèves de {owner}': "→ {owner}'s students",
   'Compte collaborateur': 'Collaborating account',
   'Donner accès aux élèves de': "Grant access to this account's students",
   'Assigner': 'Assign',
@@ -330,6 +330,14 @@ export const en = {
 
   // ---------- Tour de contrôle (tableau de complétion) ----------
   'Tour de contrôle': 'Control tower',
+  'Par enseignant-ressource': 'By resource teacher',
+  'Enseignants-ressource': 'Resource teachers',
+  'Aucun enseignant-ressource assigné pour le moment.': 'No resource teacher assigned yet.',
+  "Cet enseignant-ressource n'a plus d'assignation active.": 'This resource teacher no longer has an active assignment.',
+  'Classes suivies': 'Classes followed',
+  'classe suivie': 'class followed',
+  'classes suivies': 'classes followed',
+  "Cette classe n'est plus assignée à cet enseignant-ressource.": 'This class is no longer assigned to this resource teacher.',
   "Vue d'ensemble des PEI accessibles": 'Overview of accessible IEPs',
   'Aucun élève accessible pour le moment.': 'No accessible student yet.',
   'Élèves': 'Students',

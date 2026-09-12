@@ -341,6 +341,7 @@ function computeWeeklyRate(studentId) {
 function toStudentDTO(row) {
   return {
     id: row.id,
+    teacherId: row.teacher_id,
     name: row.name,
     grade: row.grade,
     nextReviewDate: row.next_review_date,
@@ -565,7 +566,7 @@ app.post('/api/auth/create-direction', requireOwner, (req, res) => {
 // de qui (teacher_assignments). Lecture ouverte à tout compte enseignant
 // (utile pour voir qui a accès à ses propres élèves) ; écriture réservée au
 // propriétaire.
-app.get('/api/auth/assignments', requireRole('enseignant'), (req, res) => {
+app.get('/api/auth/assignments', requireRole('enseignant', 'direction'), (req, res) => {
   res.json(listAssignments())
 })
 
