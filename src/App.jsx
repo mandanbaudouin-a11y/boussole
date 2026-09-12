@@ -514,7 +514,7 @@ export default function App() {
           <UpcomingReviews students={students} onOpenStudent={openStudent} />
         )}
 
-        {path === '/tour-de-controle' && <CompletionDashboard onOpenStudent={openStudent} />}
+        {path === '/tour-de-controle' && <CompletionDashboard onOpenStudent={openStudent} students={students} />}
 
         {role === 'direction' && resourceDrilldownFromPath(path) && (
           <ResourceTeacherDrilldown
