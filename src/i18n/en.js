@@ -137,6 +137,10 @@ export const en = {
   Besoins: 'Needs',
   'Aucune information enregistrée.': 'No information recorded yet.',
   'Enregistrement...': 'Saving...',
+  'Réinitialiser le mot de passe': 'Reset password',
+  'Nouveau mot de passe': 'New password',
+  'Mot de passe réinitialisé.': 'Password reset.',
+  'Confirmer': 'Confirm',
   "Suggérer une formulation avec l'IA": 'Suggest wording with AI',
   'Suggestion...': 'Suggesting...',
 

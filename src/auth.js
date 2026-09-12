@@ -22,6 +22,8 @@ export const auth = {
   logout: () => request('/auth/logout', { method: 'POST' }),
 
   listAccounts: () => request('/auth/accounts'),
+  resetPassword: (username, password) =>
+    request(`/auth/accounts/${encodeURIComponent(username)}/reset-password`, { method: 'POST', body: JSON.stringify({ password }) }),
   createEaAccount: (username, password) =>
     request('/auth/create-ea', { method: 'POST', body: JSON.stringify({ username, password }) }),
   createEnseignantAccount: (username, password, nomComplet, titre) =>

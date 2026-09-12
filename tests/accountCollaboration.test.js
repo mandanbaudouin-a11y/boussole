@@ -138,3 +138,48 @@ describe('GET/POST /api/network-settings', () => {
     expect(res.status).toBe(403)
   })
 })
+
+describe('POST /api/auth/accounts/:username/reset-password (pas de "mot de passe oublié" en libre-service)', () => {
+  it('le propriétaire peut réinitialiser le mot de passe d\'un autre compte, qui fonctionne ensuite pour se connecter', async () => {
+    await createEA(baseUrl, teacherCookie)
+    const res = await fetch(
+      `${baseUrl}/api/auth/accounts/assistant/reset-password`,
+      authed(teacherCookie, { method: 'POST', body: JSON.stringify({ password: 'NouveauMdp123' }) })
+    )
+    expect(res.status).toBe(204)
+
+    const loginRes = await fetch(`${baseUrl}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'assistant', password: 'NouveauMdp123', role: 'ea' }),
+    })
+    expect(loginRes.status).toBe(200)
+  })
+
+  it('rejette un mot de passe trop court', async () => {
+    await createEA(baseUrl, teacherCookie)
+    const res = await fetch(
+      `${baseUrl}/api/auth/accounts/assistant/reset-password`,
+      authed(teacherCookie, { method: 'POST', body: JSON.stringify({ password: 'court' }) })
+    )
+    expect(res.status).toBe(400)
+  })
+
+  it('renvoie 404 pour un compte inexistant', async () => {
+    const res = await fetch(
+      `${baseUrl}/api/auth/accounts/inexistant/reset-password`,
+      authed(teacherCookie, { method: 'POST', body: JSON.stringify({ password: 'NouveauMdp123' }) })
+    )
+    expect(res.status).toBe(404)
+  })
+
+  it("un compte non-propriétaire ne peut pas réinitialiser un mot de passe", async () => {
+    await createEnseignant(baseUrl, teacherCookie)
+    const collab = await login(baseUrl, { username: 'ressource', password: 'test1234', role: 'enseignant' })
+    const res = await fetch(
+      `${baseUrl}/api/auth/accounts/prof/reset-password`,
+      authed(collab.cookie, { method: 'POST', body: JSON.stringify({ password: 'NouveauMdp123' }) })
+    )
+    expect(res.status).toBe(403)
+  })
+})

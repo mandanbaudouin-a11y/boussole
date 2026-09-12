@@ -35,6 +35,7 @@ import {
   listAssignments,
   createAssignment,
   deleteAssignment,
+  resetPassword,
   verifyPassword,
   isLockedOut,
   registerFailedAttempt,
@@ -487,6 +488,19 @@ app.post('/api/auth/logout', (req, res) => {
 
 app.get('/api/auth/accounts', requireRole('enseignant'), (req, res) => {
   res.json(listAccounts())
+})
+
+// Pas de "mot de passe oublié" en libre-service (app locale, pas de serveur
+// mail) — le propriétaire réinitialise directement le mot de passe de
+// n'importe quel compte, y compris le sien, depuis l'onglet Comptes.
+app.post('/api/auth/accounts/:username/reset-password', requireOwner, (req, res) => {
+  const password = req.body.password || ''
+  if (password.length < 8) {
+    return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 8 caractères.' })
+  }
+  const ok = resetPassword(req.params.username, password)
+  if (!ok) return notFound(res, 'Compte')
+  res.status(204).end()
 })
 
 // Réservé au compte propriétaire (requireOwner) : un compte enseignant

@@ -116,6 +116,15 @@ export function updateProfile(userId, data) {
   return getUserProfile(userId)
 }
 
+// Pas de flux "mot de passe oublié" en libre-service possible (app locale,
+// hors ligne, aucun serveur mail) — le compte propriétaire réinitialise
+// directement depuis l'onglet Comptes à la place.
+export function resetPassword(username, password) {
+  const hash = bcrypt.hashSync(password, SALT_ROUNDS)
+  const result = db.prepare('UPDATE users SET password_hash = ? WHERE username = ?').run(hash, username)
+  return result.changes > 0
+}
+
 export function listAccounts() {
   return db
     .prepare('SELECT username, role, nom_complet AS nomComplet, titre, is_owner AS isOwner, created_at FROM users ORDER BY created_at ASC')

@@ -708,6 +708,71 @@ function TeacherProfilePanel() {
   )
 }
 
+function ResetPasswordControl({ username }) {
+  const { t } = useLanguage()
+  const [editing, setEditing] = useState(false)
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [done, setDone] = useState(false)
+
+  const submit = async () => {
+    setError(null)
+    if (password.length < 8) {
+      setError(t('Le mot de passe doit contenir au moins 8 caractères.'))
+      return
+    }
+    setSaving(true)
+    try {
+      await auth.resetPassword(username, password)
+      setDone(true)
+      setEditing(false)
+      setPassword('')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (!editing) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <button type="button" className="btn" onClick={() => { setEditing(true); setDone(false) }}>
+          {t('Réinitialiser le mot de passe')}
+        </button>
+        {done && <span className="page-date" style={{ margin: 0 }}>{t('Mot de passe réinitialisé.')}</span>}
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+      <input
+        type="password"
+        className="text-input"
+        style={{ width: 180 }}
+        placeholder={t('Nouveau mot de passe')}
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        autoFocus
+      />
+      <button type="button" className="btn btn-primary" onClick={submit} disabled={saving}>
+        {saving ? t('Enregistrement...') : t('Confirmer')}
+      </button>
+      <button
+        type="button"
+        className="btn"
+        onClick={() => { setEditing(false); setPassword(''); setError(null) }}
+        disabled={saving}
+      >
+        {t('Annuler')}
+      </button>
+      {error && <span style={{ color: 'var(--urgent)', fontSize: 12 }}>{error}</span>}
+    </div>
+  )
+}
+
 export default function AccountsAdmin() {
   const { t } = useLanguage()
   const [accounts, setAccounts] = useState(null)
@@ -739,8 +804,8 @@ export default function AccountsAdmin() {
         </div>
         {!accounts && <p className="page-date" style={{ margin: 0 }}>{t('Chargement…')}</p>}
         {accounts?.map((account) => (
-          <div className="goal-row" key={account.username}>
-            <span className="goal-label">
+          <div className="goal-row" key={account.username} style={{ flexWrap: 'wrap', alignItems: 'flex-start', gap: 10 }}>
+            <span className="goal-label" style={{ flex: '1 1 220px' }}>
               {account.nomComplet ? `${account.nomComplet} (${account.username})` : account.username}
               {account.titre && (
                 <span className="page-date" style={{ display: 'block', margin: 0 }}>
@@ -752,6 +817,11 @@ export default function AccountsAdmin() {
               {account.isOwner && <span className="status-badge status-atteint">{t('Propriétaire')}</span>}
               <span className="tag-mark">{t(ROLE_LABELS[account.role]) || account.role}</span>
             </span>
+            {isOwner && (
+              <div style={{ flex: '1 1 100%' }}>
+                <ResetPasswordControl username={account.username} />
+              </div>
+            )}
           </div>
         ))}
       </div>
