@@ -105,6 +105,19 @@ describe('Taux de réussite hebdomadaire (calculé, pas stocké)', () => {
     expect(student.weeklyRate[0].pct).toBe(50)
   })
 
+  it("PATCH /api/goals/:goalId renvoie déjà le taux à jour (pas besoin d'un rechargement pour voir le pourcentage bouger)", async () => {
+    const goal = await (
+      await fetch(`${baseUrl}/api/students/${studentId}/goals`, authed(ownerCookie, { method: 'POST', body: JSON.stringify({ label: 'x' }) }))
+    ).json()
+
+    const res = await fetch(`${baseUrl}/api/goals/${goal.id}`, authed(ownerCookie, { method: 'PATCH', body: JSON.stringify({ status: 'atteint' }) }))
+    const body = await res.json()
+
+    expect(body.status).toBe('atteint')
+    expect(body.studentWeeklyRate).toBeTruthy()
+    expect(body.studentWeeklyRate[body.studentWeeklyRate.length - 1].pct).toBe(100)
+  })
+
   it("n'est pas affecté par une restauration de sauvegarde (recalculé à partir des objectifs restaurés)", async () => {
     await fetch(`${baseUrl}/api/students/${studentId}/goals`, authed(ownerCookie, { method: 'POST', body: JSON.stringify({ label: 'x', status: 'atteint' }) }))
     await fetch(`${baseUrl}/api/goals/${(await getStudent()).goals[0].id}`, authed(ownerCookie, { method: 'PATCH', body: JSON.stringify({ status: 'atteint' }) }))

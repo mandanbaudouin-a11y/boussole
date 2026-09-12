@@ -180,22 +180,33 @@ export default function App() {
     setStudents((prev) => prev.map((s) => (s.id !== studentId ? s : { ...s, goals: [...s.goals, goal] })))
   })
 
-  const editGoal = withErrorHandling(async (studentId, goalId, label) => {
-    const updated = await api.updateGoal(goalId, { label })
+  // PATCH /api/goals/:goalId renvoie aussi studentWeeklyRate (voir
+  // server/index.js) : un changement de statut affecte le taux hebdomadaire
+  // de l'élève, pas seulement l'objectif lui-même — sans ça, "Taux, semaine
+  // en cours" resterait figé jusqu'au prochain rechargement complet.
+  function applyGoalUpdate(studentId, goalId, updated) {
+    const { studentWeeklyRate, ...goalOnly } = updated
     setStudents((prev) =>
       prev.map((s) =>
-        s.id !== studentId ? s : { ...s, goals: s.goals.map((g) => (g.id === goalId ? updated : g)) }
+        s.id !== studentId
+          ? s
+          : {
+              ...s,
+              goals: s.goals.map((g) => (g.id === goalId ? goalOnly : g)),
+              weeklyRate: studentWeeklyRate ?? s.weeklyRate,
+            }
       )
     )
+  }
+
+  const editGoal = withErrorHandling(async (studentId, goalId, label) => {
+    const updated = await api.updateGoal(goalId, { label })
+    applyGoalUpdate(studentId, goalId, updated)
   })
 
   const changeGoalStatus = withErrorHandling(async (studentId, goalId, status) => {
     const updated = await api.updateGoal(goalId, { status })
-    setStudents((prev) =>
-      prev.map((s) =>
-        s.id !== studentId ? s : { ...s, goals: s.goals.map((g) => (g.id === goalId ? updated : g)) }
-      )
-    )
+    applyGoalUpdate(studentId, goalId, updated)
   })
 
   const removeGoal = withErrorHandling(async (studentId, goalId) => {

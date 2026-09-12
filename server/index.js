@@ -921,7 +921,12 @@ app.patch('/api/goals/:goalId', requireRole('enseignant'), (req, res) => {
   }
 
   const updated = db.prepare('SELECT * FROM goals WHERE id = ?').get(req.params.goalId)
-  res.json(toGoalDTO(updated))
+  // Le statut d'un objectif influence le taux hebdomadaire de l'élève
+  // (computeWeeklyRate) — le renvoyer ici aussi, sinon "Taux, semaine en
+  // cours" et "Progrès sur 4 semaines" restent figés côté client jusqu'au
+  // prochain rechargement complet, alors que le reste de la page (statut
+  // affiché, compte d'objectifs atteints) se met déjà à jour.
+  res.json({ ...toGoalDTO(updated), studentWeeklyRate: computeWeeklyRate(goal.student_id) })
 })
 
 app.delete('/api/goals/:goalId', requireRole('enseignant'), (req, res) => {
