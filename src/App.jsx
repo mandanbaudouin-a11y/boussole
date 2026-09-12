@@ -14,6 +14,8 @@ import LanguageToggle from './components/LanguageToggle'
 
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000
 
+const ROLE_LABELS = { enseignant: 'Enseignant', ea: 'EA', direction: 'Direction' }
+
 export default function App() {
   const { t } = useLanguage()
   const [authStatus, setAuthStatus] = useState('loading') // loading | setup | login | authenticated
@@ -77,6 +79,13 @@ export default function App() {
     // déjà prise, avant même que le vrai calcul (profil + assignations) ait
     // eu lieu.
     if (authStatus !== 'authenticated') return
+    // Direction voit toute l'école sans assignation — contrairement à
+    // l'enseignant-ressource, la destination ne dépend d'aucun appel
+    // supplémentaire (profil/assignations), toujours le Tour de contrôle.
+    if (role === 'direction') {
+      setDefaultView('/tour-de-controle')
+      return
+    }
     if (role !== 'enseignant') {
       setDefaultView('/')
       return
@@ -429,7 +438,7 @@ export default function App() {
         <div className="sidebar-footer">
           {username && (
             <div className="sidebar-user-row">
-              <span className="role-pill">{role === 'enseignant' ? t('Enseignant') : t('EA')}</span>
+              <span className="role-pill">{t(ROLE_LABELS[role]) || role}</span>
               <span className="sidebar-user">{username}</span>
             </div>
           )}

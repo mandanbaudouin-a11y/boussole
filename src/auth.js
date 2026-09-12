@@ -26,6 +26,8 @@ export const auth = {
     request('/auth/create-ea', { method: 'POST', body: JSON.stringify({ username, password }) }),
   createEnseignantAccount: (username, password, nomComplet, titre) =>
     request('/auth/create-enseignant', { method: 'POST', body: JSON.stringify({ username, password, nomComplet, titre }) }),
+  createDirectionAccount: (username, password, nomComplet) =>
+    request('/auth/create-direction', { method: 'POST', body: JSON.stringify({ username, password, nomComplet }) }),
 
   getAssignments: () => request('/auth/assignments'),
   createAssignment: (resourceUsername, ownerUsername) =>

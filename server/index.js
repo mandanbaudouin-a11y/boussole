@@ -149,6 +149,13 @@ function accessibleTeacherIds(req) {
     const row = db.prepare('SELECT teacher_id FROM users WHERE id = ?').get(req.session.userId)
     return row?.teacher_id ? [row.teacher_id] : []
   }
+  // Direction : accès à tous les élèves de l'école, sans passer par
+  // teacher_assignments — contrairement à l'enseignant-ressource, rien à
+  // assigner explicitement.
+  if (req.session.role === 'direction') {
+    const rows = db.prepare("SELECT id FROM users WHERE role = 'enseignant'").all()
+    return rows.map((r) => r.id)
+  }
   const grants = db
     .prepare('SELECT owner_user_id FROM teacher_assignments WHERE resource_user_id = ?')
     .all(req.session.userId)
@@ -527,6 +534,30 @@ app.post('/api/auth/create-enseignant', requireOwner, (req, res) => {
     return res.status(400).json({ error: 'Titre invalide.' })
   }
   const user = createAccount(username, password, 'enseignant', { nomComplet, titre: req.body.titre || null })
+  res.status(201).json({ username: user.username, role: user.role })
+})
+
+// Compte direction : lecture seule sur toute l'école (voir
+// accessibleTeacherIds), sans passer par le système d'assignations — distinct
+// du modèle enseignant-ressource. Réservé au propriétaire, comme les autres
+// créations de compte.
+app.post('/api/auth/create-direction', requireOwner, (req, res) => {
+  const username = (req.body.username || '').trim()
+  const password = req.body.password || ''
+  const nomComplet = (req.body.nomComplet || '').trim()
+  if (username.length < 3) {
+    return res.status(400).json({ error: "Le nom d'utilisateur doit contenir au moins 3 caractères." })
+  }
+  if (password.length < 8) {
+    return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 8 caractères.' })
+  }
+  if (!nomComplet) {
+    return res.status(400).json({ error: 'Le nom complet est requis.' })
+  }
+  if (findUserByUsername(username)) {
+    return res.status(409).json({ error: 'Ce nom d\'utilisateur est déjà pris.' })
+  }
+  const user = createAccount(username, password, 'direction', { nomComplet })
   res.status(201).json({ username: user.username, role: user.role })
 })
 

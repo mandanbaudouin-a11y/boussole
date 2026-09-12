@@ -393,6 +393,7 @@ function ObjectifsTab({
   onAddStrategy,
   onRemoveStrategy,
   strategiesLibrary,
+  canAddNote,
   onAddNote,
   onEditNote,
   onRemoveNote,
@@ -473,7 +474,7 @@ function ObjectifsTab({
             onRemoveNote={onRemoveNote}
           />
         ))}
-        <AddNoteForm studentId={student.id} onAddNote={onAddNote} />
+        {canAddNote && <AddNoteForm studentId={student.id} onAddNote={onAddNote} />}
       </div>
     </div>
   )
@@ -1624,6 +1625,9 @@ export default function StudentPage({
 }) {
   const { t } = useLanguage()
   const canEdit = role === 'enseignant'
+  // Seul le suivi quotidien (ajout de note) reste ouvert à l'EA, en plus de
+  // l'enseignant — Direction, en lecture seule, n'a droit à aucun des deux.
+  const canAddNote = role === 'enseignant' || role === 'ea'
   const [activeTab, setActiveTab] = useState('objectifs')
 
   const tabs = [...BASE_TABS]
@@ -1678,6 +1682,7 @@ export default function StudentPage({
           onAddStrategy={onAddStrategy}
           onRemoveStrategy={onRemoveStrategy}
           strategiesLibrary={strategiesLibrary}
+          canAddNote={canAddNote}
           onAddNote={onAddNote}
           onEditNote={onEditNote}
           onRemoveNote={onRemoveNote}

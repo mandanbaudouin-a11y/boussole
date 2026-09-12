@@ -23,6 +23,7 @@ export const en = {
   "Compte enseignant — accès complet à l'application": 'Teacher account — full access to the application',
   'Se connecter en tant que': 'Sign in as',
   EA: 'EA',
+  Direction: 'Administration',
   "Nom d'utilisateur": 'Username',
   'Mot de passe': 'Password',
   'Se connecter': 'Sign in',
@@ -258,6 +259,9 @@ export const en = {
   'Ajouter un enseignant collaborateur': 'Add a collaborating teacher',
   "Pour un enseignant-ressource ou tout autre collègue qui doit pouvoir consulter et modifier les mêmes PEI (pas seulement ajouter des notes comme un compte EA). Ce compte a les mêmes droits complets que le vôtre.":
     "For a resource teacher or any other colleague who needs to view and edit the same IEPs (not just add notes like an EA account). This account has the same full rights as yours.",
+  'Créer un compte Direction': 'Create an Administration account',
+  "Accès en lecture seule à tous les élèves de l'école, sans assignation à faire — pour la direction qui supervise sans modifier les PEI.":
+    "Read-only access to every student in the school, no assignment needed — for administrators who oversee IEPs without editing them.",
   'Réseau local': 'Local network',
   "Permet à un collègue sur le même réseau Wi-Fi de l'école (ex. un enseignant-ressource) d'ouvrir Repère dans son navigateur, sans rien installer. À n'activer que sur le réseau de l'école — jamais sur un réseau public.":
     "Lets a colleague on the same school Wi-Fi (e.g. a resource teacher) open Repère in their browser, with nothing to install. Only enable this on the school's own network — never on a public network.",

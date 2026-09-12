@@ -4,7 +4,7 @@ import { api } from '../api'
 import { TEACHER_TITLES, TEACHER_TITLE_LABELS } from '../teacherTitles'
 import { useLanguage } from '../i18n/LanguageContext'
 
-const ROLE_LABELS = { enseignant: 'Enseignant', ea: 'EA' }
+const ROLE_LABELS = { enseignant: 'Enseignant', ea: 'EA', direction: 'Direction' }
 
 function NewEaForm({ onCreated }) {
   const { t } = useLanguage()
@@ -128,6 +128,84 @@ function NewCollaboratorForm({ onCreated }) {
             <option key={tt.value} value={tt.value}>{t(tt.label)}</option>
           ))}
         </select>
+      </div>
+      <div className="form-row" style={{ marginTop: 10, flexWrap: 'wrap' }}>
+        <input
+          className="text-input"
+          placeholder={t("Nom d'utilisateur")}
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+        />
+        <input
+          className="text-input"
+          type="password"
+          placeholder={t('Mot de passe (8 caractères min.)')}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+      </div>
+      <div className="form-row" style={{ marginTop: 10 }}>
+        <button type="submit" className="btn btn-primary" disabled={saving}>
+          {saving ? t('Création...') : t('Créer le compte')}
+        </button>
+      </div>
+    </form>
+  )
+}
+
+function NewDirectionForm({ onCreated }) {
+  const { t } = useLanguage()
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [nomComplet, setNomComplet] = useState('')
+  const [error, setError] = useState(null)
+  const [saving, setSaving] = useState(false)
+
+  const submit = async (e) => {
+    e.preventDefault()
+    setError(null)
+    if (username.trim().length < 3) {
+      setError(t("Le nom d'utilisateur doit contenir au moins 3 caractères."))
+      return
+    }
+    if (password.length < 8) {
+      setError(t('Le mot de passe doit contenir au moins 8 caractères.'))
+      return
+    }
+    if (!nomComplet.trim()) {
+      setError(t('Le nom complet est requis.'))
+      return
+    }
+    setSaving(true)
+    try {
+      await auth.createDirectionAccount(username.trim(), password, nomComplet.trim())
+      setUsername('')
+      setPassword('')
+      setNomComplet('')
+      onCreated()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <form className="card new-student-form" onSubmit={submit}>
+      <div className="card-header">
+        <p className="student-name" style={{ cursor: 'default' }}>{t('Créer un compte Direction')}</p>
+      </div>
+      <p className="backup-hint">
+        {t("Accès en lecture seule à tous les élèves de l'école, sans assignation à faire — pour la direction qui supervise sans modifier les PEI.")}
+      </p>
+      {error && <div className="alert alert-urgent" style={{ marginBottom: 14 }}>{error}</div>}
+      <div className="form-row" style={{ flexWrap: 'wrap' }}>
+        <input
+          className="text-input"
+          placeholder={t('Nom complet')}
+          value={nomComplet}
+          onChange={(e) => setNomComplet(e.target.value)}
+        />
       </div>
       <div className="form-row" style={{ marginTop: 10, flexWrap: 'wrap' }}>
         <input
@@ -675,6 +753,8 @@ export default function AccountsAdmin() {
           <NewEaForm onCreated={load} />
 
           <NewCollaboratorForm onCreated={load} />
+
+          <NewDirectionForm onCreated={load} />
 
           <AssignmentsPanel accounts={accounts} />
 

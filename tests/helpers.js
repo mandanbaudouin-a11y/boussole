@@ -49,6 +49,15 @@ export async function createEnseignant(baseUrl, teacherCookie, overrides = {}) {
   return res
 }
 
+export async function createDirection(baseUrl, teacherCookie, overrides = {}) {
+  const res = await fetch(`${baseUrl}/api/auth/create-direction`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Cookie: teacherCookie },
+    body: JSON.stringify({ username: 'direction', password: 'test1234', nomComplet: 'Céline Directrice', ...overrides }),
+  })
+  return res
+}
+
 export async function createAssignmentGrant(baseUrl, ownerCookie, resourceUsername, ownerUsername) {
   const res = await fetch(`${baseUrl}/api/auth/assignments`, {
     method: 'POST',

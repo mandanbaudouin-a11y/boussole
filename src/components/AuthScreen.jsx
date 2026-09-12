@@ -182,6 +182,13 @@ export default function AuthScreen({ mode, onSubmit, message }) {
               >
                 {t('EA')}
               </button>
+              <button
+                type="button"
+                className={`role-toggle-btn ${role === 'direction' ? 'active' : ''}`}
+                onClick={() => setRole('direction')}
+              >
+                {t('Direction')}
+              </button>
             </div>
           </>
         )}

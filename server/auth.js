@@ -18,7 +18,7 @@ export function getSessionSecret() {
   return secret
 }
 
-export const ROLES = ['enseignant', 'ea']
+export const ROLES = ['enseignant', 'ea', 'direction']
 
 export function hasTeacherAccount() {
   return db.prepare("SELECT COUNT(*) AS n FROM users WHERE role = 'enseignant'").get().n > 0
