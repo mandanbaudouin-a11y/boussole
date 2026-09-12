@@ -459,6 +459,7 @@ export default function App() {
             {t('Déconnexion')}
           </button>
           <p>{t('Base de données SQLite locale — les changements sont enregistrés sur ce poste.')}</p>
+          <p>Repère v{__APP_VERSION__}</p>
         </div>
       </aside>
 
